@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>六哥指数 - 股票盯盘</title>
+<style>
+  :root {
+    --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+    --bg-hover: #252c35; --border-color: #30363d; --text-primary: #e6edf3;
+    --text-secondary: #8b949e; --text-muted: #6e7681; --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.1); --green: #22c55e; --green-bg: rgba(34,197,94,0.1);
+    --gray: #6e7681; --accent: #58a6ff; --accent-bg: rgba(88,166,255,0.08); --gold: #f59e0b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh}
+  .login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;overflow:hidden}
+  .login-page::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 40%,rgba(245,158,11,0.06) 0%,transparent 50%),radial-gradient(circle at 70% 60%,rgba(239,68,68,0.04) 0%,transparent 50%);animation:bgFloat 20s ease-in-out infinite}
+  @keyframes bgFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(-2%,2%)}}
+  .login-card{position:relative;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:20px;padding:48px 40px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.4)}
+  .login-logo{text-align:center;margin-bottom:8px}.login-logo .icon{font-size:48px;margin-bottom:12px}
+  .login-logo .title{font-size:32px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:3px}
+  .login-logo .subtitle{font-size:13px;color:var(--text-muted);margin-top:6px}
+  .login-divider{height:1px;background:var(--border-color);margin:28px 0}
+  .login-field{margin-bottom:18px}.login-field label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.5px}
+  .login-field .input-wrap{position:relative;display:flex;align-items:center}
+  .login-field input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);font-size:15px;transition:border-color 0.2s}
+  .login-field input:focus{outline:none;border-color:var(--accent)}.login-field input::placeholder{color:var(--text-muted)}
+  .login-field .input-wrap input{padding-right:44px}
+  .eye-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;font-size:18px;line-height:1;transition:color 0.2s;user-select:none;-webkit-user-select:none}.eye-btn:hover{color:var(--text-secondary)}
+  .login-error{color:var(--red);font-size:12px;margin-bottom:12px;min-height:18px;text-align:center}
+  .login-btn{width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:1px}
+  .login-btn:hover{opacity:0.9;transform:translateY(-1px);box-shadow:0 6px 20px rgba(245,158,11,0.35)}
+  .login-footer{text-align:center;margin-top:20px;font-size:11px;color:var(--text-muted);line-height:1.7}
+  .pw-rules{font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.6;padding-left:4px}
+  .login-step{text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:16px}
+  .login-step span{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--border-color);margin:0 4px;vertical-align:middle}
+  .login-step span.active{background:var(--gold)}.confirm-section{display:none}.confirm-section.active{display:block}
+  .page{display:none}.page.active{display:block}.login-page.hidden{display:none}
+  .header{background:var(--bg-secondary);border-bottom:1px solid var(--border-color);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+  .header-left{display:flex;align-items:center;gap:12px}
+  .logo{font-size:28px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+  .logo-sub{font-size:12px;color:var(--text-muted);margin-top:2px}.header-right{display:flex;align-items:center;gap:10px}
+  .market-time{font-size:12px;color:var(--text-muted);text-align:right}
+  .market-time .time{font-size:16px;color:var(--text-secondary);font-weight:600;font-variant-numeric:tabular-nums}
+  .user-info{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-color);font-size:13px;color:var(--text-secondary)}
+  .user-info .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;overflow:hidden}
+  .user-info .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+  .hdr-btn{padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;display:inline-flex;align-items:center;gap:4px}
+  .hdr-btn-admin{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(88,166,255,0.2)}.hdr-btn-admin:hover{background:rgba(88,166,255,0.15);border-color:var(--accent)}
+  .hdr-btn-logout{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,0.2)}.hdr-btn-logout:hover{background:rgba(239,68,68,0.2);border-color:var(--red)}
+  .btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:13px;transition:all 0.2s;display:flex;align-items:center;gap:6px}.btn:hover{background:var(--bg-hover);border-color:var(--accent)}
+  .btn-primary{background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;font-weight:600}.btn-primary:hover{opacity:0.9;transform:translateY(-1px);box-shadow:0 4px 12px rgba(245,158,11,0.3)}
+  .main{max-width:1400px;margin:0 auto;padding:20px 24px}
+  .stats-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+  .stat-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:14px 20px;flex:1;min-width:140px}
+  .stat-card .label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+  .stat-card .value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .table-container{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;overflow:hidden}
+  .table-header{display:grid;grid-template-columns:30px 160px 150px 95px 105px 165px 165px 85px 45px;padding:12px 16px;background:var(--bg-card);border-bottom:1px solid var(--border-color);font-size:12px;color:var(--text-muted);letter-spacing:0.5px;font-weight:600;gap:6px;align-items:center}
+  .stock-row{display:grid;grid-template-columns:30px 160px 150px 95px 105px 165px 165px 85px 45px;padding:10px 16px;border-bottom:1px solid var(--border-color);align-items:center;transition:all 0.15s;gap:6px;user-select:none}
+  .stock-row:hover{background:var(--bg-hover)}.stock-row:last-child{border-bottom:none}
+  .stock-row.dragging{opacity:0.5;background:var(--bg-hover);box-shadow:0 4px 20px rgba(0,0,0,0.3)}.stock-row.drag-over{border-top:2px solid var(--gold)}
+  .drag-handle{cursor:grab;color:var(--text-muted);font-size:14px;display:flex;align-items:center;justify-content:center;padding:4px;border-radius:4px;transition:all 0.15s;touch-action:none}
+  .drag-handle:hover{color:var(--text-secondary);background:var(--bg-hover)}.drag-handle:active{cursor:grabbing}
+  .stock-info .name{font-size:15px;font-weight:600;margin-bottom:2px}
+  .stock-info .name a{color:inherit;text-decoration:none;transition:all 0.15s}.stock-info .name a:hover{text-decoration:underline;filter:brightness(1.2)}
+  .stock-info .code{font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+  .kline-cell{display:flex;align-items:center;justify-content:center}
+  .change-cell{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}.price-cell{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+  .editable-group{display:flex;flex-direction:column;gap:3px}.editable-row{display:flex;align-items:center;gap:4px;font-size:12px}
+  .editable-row .label{color:var(--text-muted);font-size:10px;width:28px;flex-shrink:0}
+  .editable-input{background:transparent;border:1px solid transparent;color:var(--text-primary);font-size:13px;padding:2px 6px;border-radius:4px;width:100%;font-variant-numeric:tabular-nums;transition:all 0.2s}
+  .editable-input:hover{border-color:var(--border-color)}.editable-input:focus{outline:none;border-color:var(--accent);background:var(--bg-card)}
+  .editable-input.source-input{font-size:12px;width:100%}
+  .target-btn{padding:4px 12px;border-radius:20px;border:1px solid;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;background:transparent;white-space:nowrap}
+  .target-btn.yes{color:var(--gold);border-color:var(--gold);background:rgba(245,158,11,0.1)}.target-btn.no{color:var(--text-muted);border-color:var(--border-color)}.target-btn:hover{transform:scale(1.05)}
+  .delete-btn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s}.delete-btn:hover{background:rgba(239,68,68,0.15);color:var(--red)}
+  .c-red{color:var(--red)}.c-green{color:var(--green)}.c-gray{color:var(--gray)}
+  .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
+  .modal-overlay.active{opacity:1;pointer-events:all}
+  .modal{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:16px;padding:28px;width:420px;max-width:90vw;transform:translateY(20px);transition:transform 0.2s}
+  .modal-overlay.active .modal{transform:translateY(0)}.modal h3{font-size:18px;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+  .modal-input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);font-size:15px;margin-bottom:16px;transition:border-color 0.2s}
+  .modal-input:focus{outline:none;border-color:var(--accent)}.modal-input::placeholder{color:var(--text-muted)}
+  .modal-hint{font-size:12px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}.empty-state .icon{font-size:48px;margin-bottom:12px}.empty-state .text{font-size:14px}
+  .refresh-indicator{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)}
+  .refresh-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .refresh-indicator.error .refresh-dot{background:var(--red);animation:none}
+  .admin-table{width:100%;border-collapse:collapse;margin-top:16px}
+  .admin-table th,.admin-table td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--border-color);font-size:13px}
+  .admin-table th{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;background:var(--bg-card)}
+  .admin-table tr:hover td{background:var(--bg-hover)}
+  .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}.status-dot.online{background:var(--green)}.status-dot.offline{background:var(--gray)}
+  .admin-badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .admin-badge.yes{color:var(--gold);background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3)}.admin-badge.no{color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border-color)}
+  .toggle-switch{position:relative;width:36px;height:20px;display:inline-block;vertical-align:middle}.toggle-switch input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border-color);border-radius:20px;transition:0.3s}
+  .toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:2px;bottom:2px;background:var(--text-primary);border-radius:50%;transition:0.3s}
+  .toggle-switch input:checked+.toggle-slider{background:var(--gold)}.toggle-switch input:checked+.toggle-slider::before{transform:translateX(16px)}
+  .admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+  .admin-title{font-size:20px;font-weight:700}.admin-stats{display:flex;gap:20px;font-size:13px;color:var(--text-secondary)}
+  .admin-avatar-cell{display:flex;align-items:center;gap:10px}
+  .admin-avatar-img{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;overflow:hidden;cursor:pointer;transition:opacity 0.2s;flex-shrink:0}
+  .admin-avatar-img:hover{opacity:0.8}.admin-avatar-img img{width:100%;height:100%;object-fit:cover}.name-over-limit{color:var(--red)!important}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px}
+  @media(max-width:1200px){.table-header,.stock-row{grid-template-columns:25px 130px 130px 75px 95px 140px 130px 75px 35px}}
+  @media(max-width:900px){.table-container{overflow-x:auto}.table-header,.stock-row{min-width:950px}}
+</style>
+</head>
+<body>
+<!-- Login -->
+<div class="login-page" id="loginPage">
+  <div class="login-card">
+    <div class="login-logo"><div class="icon">📈</div><div class="title">六哥指数</div><div class="subtitle">股票盯盘 · 实时监控</div></div>
+    <div class="login-divider"></div>
+    <div id="loginStep1">
+      <div class="login-step"><span class="active"></span><span></span></div>
+      <div class="login-field"><label>用户名</label><input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="username"></div>
+      <div class="login-field"><label>密码</label><div class="input-wrap"><input type="password" id="loginPass" placeholder="8~16位，字母/数字/符号" autocomplete="current-password"><button class="eye-btn" onmousedown="showPw('loginPass')" onmouseup="hidePw('loginPass')" onmouseleave="hidePw('loginPass')" ontouchstart="showPw('loginPass')" ontouchend="hidePw('loginPass')" tabindex="-1">👁</button></div></div>
+      <div class="pw-rules">密码要求：8~16位，仅包含字母、数字和基础符号（!@#$%^&*_-）</div>
+      <div class="login-error" id="loginError1"></div>
+      <button class="login-btn" onclick="loginStep1()">下一步</button>
+    </div>
+    <div id="loginStep2" class="confirm-section">
+      <div class="login-step"><span class="active"></span><span class="active"></span></div>
+      <div style="text-align:center;margin-bottom:16px;color:var(--text-secondary);font-size:14px">✨ 首次注册，请再次确认密码</div>
+      <div class="login-field"><label>确认密码</label><div class="input-wrap"><input type="password" id="loginPassConfirm" placeholder="请再次输入密码" autocomplete="new-password"><button class="eye-btn" onmousedown="showPw('loginPassConfirm')" onmouseup="hidePw('loginPassConfirm')" onmouseleave="hidePw('loginPassConfirm')" ontouchstart="showPw('loginPassConfirm')" ontouchend="hidePw('loginPassConfirm')" tabindex="-1">👁</button></div></div>
+      <div class="login-error" id="loginError2"></div>
+      <div style="display:flex;gap:10px"><button class="login-btn" style="background:var(--bg-card);color:var(--text-primary);flex:0 0 auto;width:80px" onclick="backToStep1()">返回</button><button class="login-btn" style="flex:1" onclick="loginStep2()">确认注册</button></div>
+    </div>
+    <div class="login-footer">首次输入用户名将自动进入注册流程<br>已有账号直接登录</div>
+  </div>
+</div>
+<!-- App -->
+<div class="page" id="appPage">
+  <div class="header">
+    <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">股票盯盘 · 实时监控</div></div></div>
+    <div class="header-right">
+      <div class="refresh-indicator" id="refreshIndicator"><span class="refresh-dot"></span><span id="refreshText">实时更新中</span></div>
+      <div class="market-time"><div class="time" id="clock">--:--:--</div><div id="marketStatus">加载中...</div></div>
+      <div class="user-info"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span>
+        <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin()">⚙ 管理</button>
+        <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
+      <button class="btn btn-primary" onclick="openAddModal()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>添加股票</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="stats-bar">
+      <div class="stat-card"><div class="label">持仓数量</div><div class="value" id="statCount">0</div></div>
+      <div class="stat-card"><div class="label">涨</div><div class="value c-red" id="statUp">0</div></div>
+      <div class="stat-card"><div class="label">跌</div><div class="value c-green" id="statDown">0</div></div>
+      <div class="stat-card"><div class="label">平</div><div class="value c-gray" id="statFlat">0</div></div>
+      <div class="stat-card"><div class="label">已达标</div><div class="value" style="color:var(--gold)" id="statTarget">0</div></div>
+    </div>
+    <div class="table-container">
+      <div class="table-header"><div></div><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">涨跌幅</div><div style="text-align:right">当前价格</div><div style="text-align:center">目标 / 成本价</div><div>消息来源</div><div style="text-align:center">达标</div><div></div></div>
+      <div id="stockList"><div class="empty-state"><div class="icon">📊</div><div class="text">暂无股票，点击右上角"添加股票"开始盯盘</div></div></div>
+    </div>
+  </div>
+</div>
+<!-- Admin -->
+<div class="page" id="adminPage">
+  <div class="header">
+    <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">用户管理</div></div></div>
+    <div class="header-right"><div class="user-info"><span class="avatar" id="adminAvatar">A</span><span id="adminName">管理员</span>
+      <button class="hdr-btn hdr-btn-admin" onclick="showApp()">← 返回盯盘</button>
+      <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div></div>
+  </div>
+  <div class="main">
+    <div class="admin-header"><div class="admin-title">👥 用户管理</div><div class="admin-stats"><span>总用户：<strong id="adminTotalUsers">0</strong></span><span>管理员：<strong id="adminTotalAdmins">0</strong></span></div></div>
+    <div class="table-container"><table class="admin-table"><thead><tr><th>UID</th><th>头像 / 用户名</th><th>登录状态</th><th>管理员</th><th>管理员开关</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
+  </div>
+</div>
+<!-- Modals -->
+<div class="modal-overlay" id="addModal"><div class="modal"><h3>📌 添加股票</h3><input class="modal-input" id="stockCodeInput" placeholder="输入股票代码，如 301053" maxlength="6"><div class="modal-hint">支持沪深A股6位代码，如：<br>· 60xxxx（沪市主板） · 00xxxx（深市主板）<br>· 30xxxx（创业板） · 68xxxx（科创板）</div><div class="modal-actions"><button class="btn" onclick="closeAddModal()">取消</button><button class="btn btn-primary" onclick="addStock()">确认添加</button></div></div></div>
+<input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+<script src="app.js"></script>
+</body>
+</html>

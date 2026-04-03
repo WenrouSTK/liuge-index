@@ -1,0 +1,232 @@
+// ============================================================
+// 六哥指数 — 后端服务
+// Node.js + Express + sql.js (纯JS SQLite)
+// ============================================================
+const express = require('express');
+const initSqlJs = require('sql.js');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'liuge_secret_key_2026';
+const DB_PATH = path.join(__dirname, 'data', 'liuge.db');
+
+fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+
+app.use(express.json({ limit: '5mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
+let db;
+
+// sql.js helper: run query returning rows
+function all(sql, params = []) {
+  const stmt = db.prepare(sql);
+  if (params.length) stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) rows.push(stmt.getAsObject());
+  stmt.free();
+  return rows;
+}
+function get(sql, params = []) {
+  const rows = all(sql, params);
+  return rows[0] || null;
+}
+function run(sql, params = []) {
+  db.run(sql, params);
+  return { lastInsertRowid: db.exec("SELECT last_insert_rowid()")[0]?.values[0][0] || 0, changes: db.getRowsModified() };
+}
+function saveDb() {
+  const data = db.export();
+  const buffer = Buffer.from(data);
+  fs.writeFileSync(DB_PATH, buffer);
+}
+
+// Auto-save every 10 seconds
+setInterval(saveDb, 10000);
+
+// ============================================================
+// Auth Middleware
+// ============================================================
+function auth(req, res, next) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '请先登录' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = get('SELECT * FROM users WHERE id = ?', [decoded.id]);
+    if (!user) return res.status(401).json({ error: '用户不存在' });
+    req.user = user;
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: '登录已过期，请重新登录' });
+  }
+}
+function adminAuth(req, res, next) {
+  auth(req, res, () => {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+    next();
+  });
+}
+
+// ============================================================
+// Auth API
+// ============================================================
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  if (username.length < 2) return res.status(400).json({ error: '用户名至少2个字符' });
+  if (!/^[A-Za-z0-9!@#$%^&*_\-]{8,16}$/.test(password)) return res.status(400).json({ error: '密码格式不正确' });
+  const existing = get('SELECT id FROM users WHERE username = ?', [username]);
+  if (existing) return res.status(409).json({ error: '用户名已存在' });
+  const hash = bcrypt.hashSync(password, 10);
+  const count = get('SELECT COUNT(*) as c FROM users').c;
+  const isAdmin = count === 0 ? 1 : 0;
+  const now = Date.now();
+  const result = run('INSERT INTO users (username, display_name, password_hash, is_admin, created_at, last_login) VALUES (?,?,?,?,?,?)', [username, username, hash, isAdmin, now, now]);
+  saveDb();
+  const token = jwt.sign({ id: result.lastInsertRowid }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ token, user: { id: result.lastInsertRowid, username, display_name: username, is_admin: isAdmin, avatar: null } });
+});
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  const user = get('SELECT * FROM users WHERE username = ?', [username]);
+  if (!user) return res.status(401).json({ error: '用户名或密码错误' });
+  if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: '用户名或密码错误' });
+  run('UPDATE users SET last_login = ? WHERE id = ?', [Date.now(), user.id]);
+  saveDb();
+  const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ token, user: { id: user.id, username: user.username, display_name: user.display_name, is_admin: user.is_admin, avatar: user.avatar } });
+});
+
+app.get('/api/me', auth, (req, res) => {
+  const u = req.user;
+  res.json({ id: u.id, username: u.username, display_name: u.display_name, is_admin: u.is_admin, avatar: u.avatar });
+});
+
+// ============================================================
+// User Management API
+// ============================================================
+app.get('/api/users', adminAuth, (req, res) => {
+  res.json(all('SELECT id, username, display_name, is_admin, avatar, created_at, last_login FROM users ORDER BY created_at'));
+});
+
+app.put('/api/users/:id/admin', adminAuth, (req, res) => {
+  const { id } = req.params;
+  if (parseInt(id) === req.user.id) return res.status(400).json({ error: '不能修改自己' });
+  run('UPDATE users SET is_admin = ? WHERE id = ?', [req.body.is_admin ? 1 : 0, id]);
+  saveDb();
+  res.json({ success: true });
+});
+
+app.put('/api/users/:id/avatar', auth, (req, res) => {
+  const { id } = req.params;
+  if (parseInt(id) !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: '无权操作' });
+  run('UPDATE users SET avatar = ? WHERE id = ?', [req.body.avatar || null, id]);
+  saveDb();
+  res.json({ success: true });
+});
+
+app.put('/api/users/:id/name', auth, (req, res) => {
+  const { id } = req.params;
+  if (parseInt(id) !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: '无权操作' });
+  const { display_name } = req.body;
+  if (!display_name || !display_name.trim()) return res.status(400).json({ error: '显示名不能为空' });
+  let byteLen = 0;
+  for (let i = 0; i < display_name.length; i++) byteLen += display_name.charCodeAt(i) > 127 ? 3 : 1;
+  if (byteLen > 32) return res.status(400).json({ error: '显示名超出32字节限制' });
+  run('UPDATE users SET display_name = ? WHERE id = ?', [display_name.trim(), id]);
+  saveDb();
+  res.json({ success: true });
+});
+
+// ============================================================
+// Stock API
+// ============================================================
+app.get('/api/stocks', auth, (req, res) => {
+  res.json(all('SELECT * FROM stocks ORDER BY sort_order, id'));
+});
+
+app.post('/api/stocks', auth, (req, res) => {
+  const { code } = req.body;
+  if (!code || !/^\d{6}$/.test(code)) return res.status(400).json({ error: '请输入6位股票代码' });
+  const existing = get('SELECT id FROM stocks WHERE code = ?', [code]);
+  if (existing) return res.status(409).json({ error: '该股票已在列表中' });
+  const maxOrder = get('SELECT MAX(sort_order) as m FROM stocks').m || 0;
+  const result = run('INSERT INTO stocks (code, sort_order, created_by, created_at) VALUES (?,?,?,?)', [code, maxOrder + 1, req.user.id, Date.now()]);
+  saveDb();
+  res.json({ id: result.lastInsertRowid, code, sort_order: maxOrder + 1 });
+});
+
+app.put('/api/stocks/:id', auth, (req, res) => {
+  const { id } = req.params;
+  const { cost_price, target_price, source, reached } = req.body;
+  const updates = [], params = [];
+  if (cost_price !== undefined) { updates.push('cost_price = ?'); params.push(cost_price); }
+  if (target_price !== undefined) { updates.push('target_price = ?'); params.push(target_price); }
+  if (source !== undefined) { updates.push('source = ?'); params.push(source); }
+  if (reached !== undefined) { updates.push('reached = ?'); params.push(reached ? 1 : 0); }
+  if (!updates.length) return res.status(400).json({ error: '没有需要更新的字段' });
+  params.push(id);
+  run(`UPDATE stocks SET ${updates.join(', ')} WHERE id = ?`, params);
+  saveDb();
+  res.json({ success: true });
+});
+
+app.delete('/api/stocks/:id', auth, (req, res) => {
+  run('DELETE FROM stocks WHERE id = ?', [req.params.id]);
+  saveDb();
+  res.json({ success: true });
+});
+
+app.put('/api/stocks/reorder', auth, (req, res) => {
+  const { orders } = req.body;
+  if (!orders || !Array.isArray(orders)) return res.status(400).json({ error: '参数错误' });
+  orders.forEach(o => run('UPDATE stocks SET sort_order = ? WHERE id = ?', [o.sort_order, o.id]));
+  saveDb();
+  res.json({ success: true });
+});
+
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+
+// ============================================================
+// Start
+// ============================================================
+async function start() {
+  const SQL = await initSqlJs();
+  if (fs.existsSync(DB_PATH)) {
+    const fileBuffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(fileBuffer);
+  } else {
+    db = new SQL.Database();
+  }
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL, avatar TEXT DEFAULT NULL, is_admin INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL, last_login INTEGER
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS stocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL,
+    cost_price TEXT DEFAULT '', target_price TEXT DEFAULT '', source TEXT DEFAULT '',
+    reached INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 0,
+    created_by INTEGER, created_at INTEGER NOT NULL
+  )`);
+  saveDb();
+  app.listen(PORT, () => {
+    console.log('\n  🔥 六哥指数 服务已启动');
+    console.log('  📡 地址: http://localhost:' + PORT);
+    console.log('  📂 数据库: ' + DB_PATH + '\n');
+  });
+}
+
+start().catch(e => { console.error('启动失败:', e); process.exit(1); });
