@@ -95,6 +95,7 @@ function enterApp() {
   const av = document.getElementById('userAvatar');
   if (u.avatar) av.innerHTML = '<img src="' + u.avatar + '">'; else av.textContent = (u.display_name || u.username).charAt(0).toUpperCase();
   document.getElementById('adminLink').style.display = u.is_admin ? 'inline-flex' : 'none';
+  document.getElementById('addStockBtn').style.display = u.is_admin ? 'inline-flex' : 'none';
   initApp();
 }
 
@@ -208,7 +209,8 @@ function fetchQuotesBatch(codes) { if (!codes.length) return Promise.resolve({})
 function colc(c) { return c > 0 ? 'c-red' : c < 0 ? 'c-green' : 'c-gray' }
 function renderStocks() {
   var list = document.getElementById('stockList');
-  if (!stocks.length) { list.innerHTML = '<div class="empty-state"><div class="icon">📊</div><div class="text">暂无股票，点击右上角"添加股票"开始盯盘</div></div>'; updateStats(); return }
+  var isAdmin = currentUser && currentUser.is_admin;
+  if (!stocks.length) { list.innerHTML = '<div class="empty-state"><div class="icon">📊</div><div class="text">' + (isAdmin ? '暂无股票，点击右上角"添加股票"开始盯盘' : '暂无股票，请联系管理员添加') + '</div></div>'; return }
   list.innerHTML = stocks.map(function(s, i) {
     var chg = s.quote ? ((s.quote.price - s.quote.prevClose) / s.quote.prevClose * 100) : 0;
     var chgS = s.quote ? (chg > 0 ? '+' : '') + chg.toFixed(2) + '%' : '--';
@@ -216,21 +218,30 @@ function renderStocks() {
     var cl = s.quote ? colc(chg) : 'c-gray';
     var nm = s.quote ? s.quote.name : (s.name || '加载中...');
     var url = getEastmoneyUrl(s.code);
-    return '<div class="stock-row" draggable="true" data-idx="' + i + '" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)" ontouchstart="touchStart(event,' + i + ')" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)">' +
-      '<div class="drag-handle" title="拖拽排序">⠿</div>' +
+    var dragAttrs = isAdmin ? ' draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)" ontouchstart="touchStart(event,' + i + ')" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)"' : '';
+    return '<div class="stock-row" data-idx="' + i + '"' + dragAttrs + '>' +
+      (isAdmin ? '<div class="drag-handle" title="拖拽排序">⠿</div>' : '<div style="width:20px"></div>') +
       '<div class="stock-info"><div class="name ' + cl + '"><a href="' + url + '" target="_blank" rel="noopener">' + nm + '</a></div><div class="code">' + s.code + '</div></div>' +
       '<div class="kline-cell"><canvas id="kline-' + s.code + '" width="140" height="50" style="width:140px;height:50px;border-radius:4px"></canvas></div>' +
       '<div class="change-cell ' + cl + '" style="text-align:right">' + chgS + '</div>' +
       '<div class="price-cell ' + cl + '" style="text-align:right">' + prS + '</div>' +
-      '<div class="editable-group"><div class="editable-row"><span class="label">目标</span><input class="editable-input" type="text" value="' + (s.target_price || '') + '" placeholder="--" onchange="updateField(' + i + ',\'target_price\',this.value)"></div><div class="editable-row"><span class="label">成本</span><input class="editable-input" type="text" value="' + (s.cost_price || '') + '" placeholder="--" onchange="updateField(' + i + ',\'cost_price\',this.value)"></div></div>' +
-      '<div><input class="editable-input source-input" type="text" value="' + (s.source || '') + '" placeholder="填写消息来源..." onchange="updateField(' + i + ',\'source\',this.value)"></div>' +
-      '<div style="text-align:center"><button class="target-btn ' + (s.reached ? 'yes' : 'no') + '" onclick="toggleReached(' + i + ')">' + (s.reached ? '✓ 已达标' : '未达标') + '</button></div>' +
-      '<div style="text-align:center"><button class="delete-btn" onclick="removeStock(' + i + ')" title="删除">✕</button></div></div>';
+      '<div class="editable-group"><div class="editable-row"><span class="label">目标</span>' +
+        (isAdmin ? '<input class="editable-input" type="text" value="' + (s.target_price || '') + '" placeholder="--" onchange="updateField(' + i + ',\'target_price\',this.value)">' : '<span class="editable-display">' + (s.target_price || '--') + '</span>') +
+      '</div><div class="editable-row"><span class="label">成本</span>' +
+        (isAdmin ? '<input class="editable-input" type="text" value="' + (s.cost_price || '') + '" placeholder="--" onchange="updateField(' + i + ',\'cost_price\',this.value)">' : '<span class="editable-display">' + (s.cost_price || '--') + '</span>') +
+      '</div></div>' +
+      '<div>' +
+        (isAdmin ? '<input class="editable-input source-input" type="text" value="' + (s.source || '') + '" placeholder="填写消息来源..." onchange="updateField(' + i + ',\'source\',this.value)">' : '<span class="editable-display" style="font-size:12px">' + (s.source || '--') + '</span>') +
+      '</div>' +
+      '<div style="text-align:center">' +
+        (isAdmin ? '<button class="target-btn ' + (s.reached ? 'yes' : 'no') + '" onclick="toggleReached(' + i + ')">' + (s.reached ? '✓ 已达标' : '未达标') + '</button>' : '<span class="target-btn ' + (s.reached ? 'yes' : 'no') + '" style="cursor:default">' + (s.reached ? '✓ 已达标' : '未达标') + '</span>') +
+      '</div>' +
+      (isAdmin ? '<div style="text-align:center"><button class="delete-btn" onclick="removeStock(' + i + ')" title="删除">✕</button></div>' : '<div></div>') +
+    '</div>';
   }).join('');
   setTimeout(function() { stocks.forEach(function(s) { drawKline('kline-' + s.code, s.code) }) }, 0);
-  updateStats();
 }
-function updateStats() { document.getElementById('statCount').textContent = stocks.length; var u = 0, d = 0, f = 0, t = 0; stocks.forEach(function(s) { if (s.quote) { var c = s.quote.price - s.quote.prevClose; if (c > 0) u++; else if (c < 0) d++; else f++ } if (s.reached) t++ }); document.getElementById('statUp').textContent = u; document.getElementById('statDown').textContent = d; document.getElementById('statFlat').textContent = f; document.getElementById('statTarget').textContent = t }
+// (统计栏已移除)
 
 // ============================================================
 // 5. Drag & Drop
@@ -282,10 +293,6 @@ async function initApp() {
   if (appInited) return; appInited = true;
   try { stocks = await api('GET', '/api/stocks') || [] } catch (e) { stocks = [] }
   updateClock(); setInterval(updateClock, 1000); renderStocks();
-  var def = ['301053', '603398', '002713', '300091', '000826'];
-  var missing = def.filter(function(c) { return !stocks.find(function(s) { return s.code === c }) });
-  for (var ci = 0; ci < missing.length; ci++) { try { var res = await api('POST', '/api/stocks', { code: missing[ci] }); stocks.push({ id: res.id, code: missing[ci], cost_price: '', target_price: '', source: '', reached: false, quote: null }) } catch (e) {} }
-  if (missing.length) renderStocks();
   if (stocks.length) await refreshAll();
   await loadAllMinuteData();
   setInterval(refreshAll, 10000);

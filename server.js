@@ -157,7 +157,8 @@ app.get('/api/stocks', auth, (req, res) => {
   res.json(all('SELECT * FROM stocks ORDER BY sort_order, id'));
 });
 
-app.post('/api/stocks', auth, (req, res) => {
+// 添加股票 — 仅管理员
+app.post('/api/stocks', adminAuth, (req, res) => {
   const { code } = req.body;
   if (!code || !/^\d{6}$/.test(code)) return res.status(400).json({ error: '请输入6位股票代码' });
   const existing = get('SELECT id FROM stocks WHERE code = ?', [code]);
@@ -168,7 +169,8 @@ app.post('/api/stocks', auth, (req, res) => {
   res.json({ id: result.lastInsertRowid, code, sort_order: maxOrder + 1 });
 });
 
-app.put('/api/stocks/:id', auth, (req, res) => {
+// 修改股票信息 — 仅管理员
+app.put('/api/stocks/:id', adminAuth, (req, res) => {
   const { id } = req.params;
   const { cost_price, target_price, source, reached } = req.body;
   const updates = [], params = [];
@@ -183,13 +185,15 @@ app.put('/api/stocks/:id', auth, (req, res) => {
   res.json({ success: true });
 });
 
-app.delete('/api/stocks/:id', auth, (req, res) => {
+// 删除股票 — 仅管理员
+app.delete('/api/stocks/:id', adminAuth, (req, res) => {
   run('DELETE FROM stocks WHERE id = ?', [req.params.id]);
   saveDb();
   res.json({ success: true });
 });
 
-app.put('/api/stocks/reorder', auth, (req, res) => {
+// 排序 — 仅管理员
+app.put('/api/stocks/reorder', adminAuth, (req, res) => {
   const { orders } = req.body;
   if (!orders || !Array.isArray(orders)) return res.status(400).json({ error: '参数错误' });
   orders.forEach(o => run('UPDATE stocks SET sort_order = ? WHERE id = ?', [o.sort_order, o.id]));

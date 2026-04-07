@@ -71,6 +71,7 @@
   .editable-group{display:flex;flex-direction:column;gap:3px}.editable-row{display:flex;align-items:center;gap:4px;font-size:12px}
   .editable-row .label{color:var(--text-muted);font-size:10px;width:28px;flex-shrink:0}
   .editable-input{background:transparent;border:1px solid transparent;color:var(--text-primary);font-size:13px;padding:2px 6px;border-radius:4px;width:100%;font-variant-numeric:tabular-nums;transition:all 0.2s}
+  .editable-display{color:var(--text-primary);font-size:13px;padding:2px 6px;font-variant-numeric:tabular-nums}
   .editable-input:hover{border-color:var(--border-color)}.editable-input:focus{outline:none;border-color:var(--accent);background:var(--bg-card)}
   .editable-input.source-input{font-size:12px;width:100%}
   .target-btn{padding:4px 12px;border-radius:20px;border:1px solid;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;background:transparent;white-space:nowrap}
@@ -143,17 +144,11 @@
       <div class="user-info"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span>
         <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin()">⚙ 管理</button>
         <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
-      <button class="btn btn-primary" onclick="openAddModal()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>添加股票</button>
+      <button class="btn btn-primary" id="addStockBtn" onclick="openAddModal()" style="display:none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>添加股票</button>
     </div>
   </div>
   <div class="main">
-    <div class="stats-bar">
-      <div class="stat-card"><div class="label">持仓数量</div><div class="value" id="statCount">0</div></div>
-      <div class="stat-card"><div class="label">涨</div><div class="value c-red" id="statUp">0</div></div>
-      <div class="stat-card"><div class="label">跌</div><div class="value c-green" id="statDown">0</div></div>
-      <div class="stat-card"><div class="label">平</div><div class="value c-gray" id="statFlat">0</div></div>
-      <div class="stat-card"><div class="label">已达标</div><div class="value" style="color:var(--gold)" id="statTarget">0</div></div>
-    </div>
+    <!-- 统计栏已移除 -->
     <div class="table-container">
       <div class="table-header"><div></div><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">涨跌幅</div><div style="text-align:right">当前价格</div><div style="text-align:center">目标 / 成本价</div><div>消息来源</div><div style="text-align:center">达标</div><div></div></div>
       <div id="stockList"><div class="empty-state"><div class="icon">📊</div><div class="text">暂无股票，点击右上角"添加股票"开始盯盘</div></div></div>
