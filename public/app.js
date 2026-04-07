@@ -38,14 +38,25 @@ async function loginStep1() {
     currentUser = res.user; enterApp(); return;
   } catch (e) {
     if (e.message === '用户名或密码错误') {
+      // Check if user exists: try register without invite code — if error is '用户名已存在', password is wrong
+      // Otherwise, it's a new user — show step 2
       pendingUser = user; pendingPass = pass;
       try {
-        const res2 = await api('POST', '/api/register', { username: user, password: pass });
-        authToken = res2.token; localStorage.setItem('liuge_token', authToken);
-        currentUser = res2.user; enterApp(); return;
+        // Try register to see if user exists (will fail with '用户名已存在' or '需要邀请码才能注册')
+        await api('POST', '/api/register', { username: user, password: pass });
+        // If somehow succeeds (first user, no invite needed), we're in
+        // This won't normally happen in step1 flow
       } catch (e2) {
-        if (e2.message === '用户名已存在') { err.textContent = '密码错误，请重试'; return }
-        err.textContent = e2.message; return;
+        if (e2.message === '用户名已存在') {
+          err.textContent = '密码错误，请重试'; return;
+        }
+        // New user — show step 2 for confirm password + invite code
+        document.getElementById('loginStep1').style.display = 'none';
+        document.getElementById('loginStep2').classList.add('active');
+        document.getElementById('loginPassConfirm').value = '';
+        document.getElementById('loginInviteCode').value = '';
+        setTimeout(function() { document.getElementById('loginPassConfirm').focus() }, 100);
+        return;
       }
     }
     err.textContent = e.message;
@@ -54,11 +65,14 @@ async function loginStep1() {
 
 async function loginStep2() {
   const cp = document.getElementById('loginPassConfirm').value;
+  const invCode = (document.getElementById('loginInviteCode').value || '').trim().toUpperCase();
   const err = document.getElementById('loginError2'); err.textContent = '';
   if (!cp) { err.textContent = '请再次输入密码'; return }
   if (cp !== pendingPass) { err.textContent = '两次密码不一致'; return }
   try {
-    const res = await api('POST', '/api/register', { username: pendingUser, password: pendingPass });
+    const body = { username: pendingUser, password: pendingPass };
+    if (invCode) body.invite_code = invCode;
+    const res = await api('POST', '/api/register', body);
     authToken = res.token; localStorage.setItem('liuge_token', authToken);
     currentUser = res.user; enterApp();
   } catch (e) { err.textContent = e.message }
@@ -104,6 +118,7 @@ async function showAdmin() {
   document.getElementById('adminPage').classList.add('active');
   if (currentUser) { document.getElementById('adminName').textContent = currentUser.display_name || currentUser.username; const av = document.getElementById('adminAvatar'); if (currentUser.avatar) av.innerHTML = '<img src="' + currentUser.avatar + '">'; else av.textContent = (currentUser.display_name || currentUser.username).charAt(0).toUpperCase() }
   await renderAdminUsers();
+  await renderInvites();
 }
 function showApp() { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('appPage').classList.add('active') }
 
@@ -395,6 +410,59 @@ async function initApp() {
   await loadAllMinuteData();
   setInterval(refreshAll, 10000);
   setInterval(loadAllMinuteData, 60000);
+}
+
+// ============================================================
+// 10. Invite Code Management
+// ============================================================
+async function renderInvites() {
+  try {
+    var invites = await api('GET', '/api/invites');
+    var tbody = document.getElementById('inviteList');
+    if (!invites.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">暂无邀请码，点击"生成邀请码"创建</td></tr>';
+      return;
+    }
+    tbody.innerHTML = invites.map(function(inv) {
+      var status = inv.used ? '<span style="color:var(--text-muted)">已使用</span>' : '<span style="color:var(--green);font-weight:600">可用</span>';
+      var usedBy = inv.used_by || '--';
+      var time = new Date(inv.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return '<tr>' +
+        '<td><code style="background:var(--bg-card);padding:3px 8px;border-radius:4px;font-size:14px;letter-spacing:2px;font-weight:700;color:var(--gold);cursor:pointer" onclick="copyInvite(\'' + inv.code + '\')" title="点击复制">' + inv.code + '</code></td>' +
+        '<td>' + status + '</td>' +
+        '<td>' + usedBy + '</td>' +
+        '<td style="font-size:12px;color:var(--text-muted)">' + time + '</td>' +
+        '<td>' + (inv.used ? '' : '<button class="delete-btn" onclick="deleteInvite(' + inv.id + ')" title="删除" style="display:inline-flex">✕</button>') + '</td>' +
+      '</tr>';
+    }).join('');
+  } catch (e) { console.error(e) }
+}
+
+async function generateInvite() {
+  try {
+    var inv = await api('POST', '/api/invites');
+    await renderInvites();
+    // 自动复制到剪贴板
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(inv.code);
+      alert('邀请码已生成并复制到剪贴板：' + inv.code);
+    } else {
+      alert('邀请码已生成：' + inv.code + '\n请手动复制发给好友');
+    }
+  } catch (e) { alert(e.message) }
+}
+
+async function deleteInvite(id) {
+  if (!confirm('确定删除该邀请码？')) return;
+  try { await api('DELETE', '/api/invites/' + id); renderInvites() } catch (e) { alert(e.message) }
+}
+
+function copyInvite(code) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(function() { alert('邀请码已复制：' + code) });
+  } else {
+    prompt('请手动复制邀请码：', code);
+  }
 }
 
 // Boot

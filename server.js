@@ -8,13 +8,16 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'liuge_secret_key_2026';
-const DB_PATH = path.join(__dirname, 'data', 'liuge.db');
+// Railway Volume 挂载到 /data，本地开发用 ./data
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const DB_PATH = path.join(DATA_DIR, 'liuge.db');
 
-fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+fs.mkdirSync(DATA_DIR, { recursive: true });
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -28,7 +31,6 @@ app.use((req, res, next) => {
 
 let db;
 
-// sql.js helper: run query returning rows
 function all(sql, params = []) {
   const stmt = db.prepare(sql);
   if (params.length) stmt.bind(params);
@@ -37,22 +39,23 @@ function all(sql, params = []) {
   stmt.free();
   return rows;
 }
-function get(sql, params = []) {
-  const rows = all(sql, params);
-  return rows[0] || null;
-}
+function get(sql, params = []) { return all(sql, params)[0] || null; }
 function run(sql, params = []) {
   db.run(sql, params);
   return { lastInsertRowid: db.exec("SELECT last_insert_rowid()")[0]?.values[0][0] || 0, changes: db.getRowsModified() };
 }
 function saveDb() {
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  try {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+  } catch (e) { console.error('Save DB error:', e.message); }
 }
 
-// Auto-save every 10 seconds
 setInterval(saveDb, 10000);
+// 优雅退出时保存
+process.on('SIGTERM', () => { saveDb(); process.exit(0); });
+process.on('SIGINT', () => { saveDb(); process.exit(0); });
 
 // ============================================================
 // Auth Middleware
@@ -78,18 +81,30 @@ function adminAuth(req, res, next) {
 }
 
 // ============================================================
-// Auth API
+// Auth API — 邀请制注册
 // ============================================================
 app.post('/api/register', (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, invite_code } = req.body;
   if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
   if (username.length < 2) return res.status(400).json({ error: '用户名至少2个字符' });
   if (!/^[A-Za-z0-9!@#$%^&*_\-]{8,16}$/.test(password)) return res.status(400).json({ error: '密码格式不正确' });
+
+  const userCount = get('SELECT COUNT(*) as c FROM users').c;
+
+  // 第一个用户（管理员）不需要邀请码
+  if (userCount > 0) {
+    if (!invite_code) return res.status(400).json({ error: '需要邀请码才能注册' });
+    const inv = get('SELECT * FROM invite_codes WHERE code = ? AND used = 0', [invite_code]);
+    if (!inv) return res.status(400).json({ error: '邀请码无效或已被使用' });
+    // 标记邀请码已使用
+    run('UPDATE invite_codes SET used = 1, used_by = ?, used_at = ? WHERE id = ?', [username, Date.now(), inv.id]);
+  }
+
   const existing = get('SELECT id FROM users WHERE username = ?', [username]);
   if (existing) return res.status(409).json({ error: '用户名已存在' });
+
   const hash = bcrypt.hashSync(password, 10);
-  const count = get('SELECT COUNT(*) as c FROM users').c;
-  const isAdmin = count === 0 ? 1 : 0;
+  const isAdmin = userCount === 0 ? 1 : 0;
   const now = Date.now();
   const result = run('INSERT INTO users (username, display_name, password_hash, is_admin, created_at, last_login) VALUES (?,?,?,?,?,?)', [username, username, hash, isAdmin, now, now]);
   saveDb();
@@ -112,6 +127,27 @@ app.post('/api/login', (req, res) => {
 app.get('/api/me', auth, (req, res) => {
   const u = req.user;
   res.json({ id: u.id, username: u.username, display_name: u.display_name, is_admin: u.is_admin, avatar: u.avatar });
+});
+
+// ============================================================
+// Invite Code API — 管理员生成/查看邀请码
+// ============================================================
+app.get('/api/invites', adminAuth, (req, res) => {
+  res.json(all('SELECT * FROM invite_codes ORDER BY created_at DESC'));
+});
+
+app.post('/api/invites', adminAuth, (req, res) => {
+  const code = crypto.randomBytes(4).toString('hex').toUpperCase(); // 8位随机码
+  const now = Date.now();
+  const result = run('INSERT INTO invite_codes (code, created_by, created_at, used) VALUES (?,?,?,0)', [code, req.user.id, now]);
+  saveDb();
+  res.json({ id: result.lastInsertRowid, code, created_at: now, used: 0 });
+});
+
+app.delete('/api/invites/:id', adminAuth, (req, res) => {
+  run('DELETE FROM invite_codes WHERE id = ?', [req.params.id]);
+  saveDb();
+  res.json({ success: true });
 });
 
 // ============================================================
@@ -151,13 +187,12 @@ app.put('/api/users/:id/name', auth, (req, res) => {
 });
 
 // ============================================================
-// Stock API
+// Stock API — 仅管理员可增删改排序
 // ============================================================
 app.get('/api/stocks', auth, (req, res) => {
   res.json(all('SELECT * FROM stocks ORDER BY sort_order, id'));
 });
 
-// 添加股票 — 仅管理员
 app.post('/api/stocks', adminAuth, (req, res) => {
   const { code } = req.body;
   if (!code || !/^\d{6}$/.test(code)) return res.status(400).json({ error: '请输入6位股票代码' });
@@ -169,7 +204,6 @@ app.post('/api/stocks', adminAuth, (req, res) => {
   res.json({ id: result.lastInsertRowid, code, sort_order: maxOrder + 1 });
 });
 
-// 修改股票信息 — 仅管理员
 app.put('/api/stocks/:id', adminAuth, (req, res) => {
   const { id } = req.params;
   const { cost_price, target_price, source, reached } = req.body;
@@ -185,14 +219,12 @@ app.put('/api/stocks/:id', adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-// 删除股票 — 仅管理员
 app.delete('/api/stocks/:id', adminAuth, (req, res) => {
   run('DELETE FROM stocks WHERE id = ?', [req.params.id]);
   saveDb();
   res.json({ success: true });
 });
 
-// 排序 — 仅管理员
 app.put('/api/stocks/reorder', adminAuth, (req, res) => {
   const { orders } = req.body;
   if (!orders || !Array.isArray(orders)) return res.status(400).json({ error: '参数错误' });
@@ -211,8 +243,10 @@ async function start() {
   if (fs.existsSync(DB_PATH)) {
     const fileBuffer = fs.readFileSync(DB_PATH);
     db = new SQL.Database(fileBuffer);
+    console.log('  📂 已加载数据库: ' + DB_PATH);
   } else {
     db = new SQL.Database();
+    console.log('  📂 新建数据库: ' + DB_PATH);
   }
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL,
@@ -225,11 +259,16 @@ async function start() {
     reached INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 0,
     created_by INTEGER, created_at INTEGER NOT NULL
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS invite_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL,
+    created_by INTEGER, created_at INTEGER NOT NULL,
+    used INTEGER DEFAULT 0, used_by TEXT, used_at INTEGER
+  )`);
   saveDb();
   app.listen(PORT, () => {
-    console.log('\n  🔥 六哥指数 服务已启动');
-    console.log('  📡 地址: http://localhost:' + PORT);
-    console.log('  📂 数据库: ' + DB_PATH + '\n');
+    console.log('\n  🍊 六哥指数 服务已启动');
+    console.log('  🚀 地址: http://localhost:' + PORT);
+    console.log('  📁 数据库: ' + DB_PATH + '\n');
   });
 }
 

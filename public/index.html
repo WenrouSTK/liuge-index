@@ -187,6 +187,7 @@
       <div class="login-step"><span class="active"></span><span class="active"></span></div>
       <div style="text-align:center;margin-bottom:16px;color:var(--text-secondary);font-size:14px">✨ 首次注册，请再次确认密码</div>
       <div class="login-field"><label>确认密码</label><div class="input-wrap"><input type="password" id="loginPassConfirm" placeholder="请再次输入密码" autocomplete="new-password"><button class="eye-btn" onmousedown="showPw('loginPassConfirm')" onmouseup="hidePw('loginPassConfirm')" onmouseleave="hidePw('loginPassConfirm')" ontouchstart="showPw('loginPassConfirm')" ontouchend="hidePw('loginPassConfirm')" tabindex="-1">👁</button></div></div>
+      <div class="login-field" id="inviteCodeField"><label>邀请码</label><input type="text" id="loginInviteCode" placeholder="请输入邀请码" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-weight:600"></div>
       <div class="login-error" id="loginError2"></div>
       <div style="display:flex;gap:10px"><button class="login-btn" style="background:var(--bg-card);color:var(--text-primary);flex:0 0 auto;width:80px" onclick="backToStep1()">返回</button><button class="login-btn" style="flex:1" onclick="loginStep2()">确认注册</button></div>
     </div>
@@ -229,6 +230,11 @@
   <div class="main">
     <div class="admin-header"><div class="admin-title">👥 用户管理</div><div class="admin-stats"><span>总用户：<strong id="adminTotalUsers">0</strong></span><span>管理员：<strong id="adminTotalAdmins">0</strong></span></div></div>
     <div class="table-container"><table class="admin-table"><thead><tr><th>UID</th><th>头像 / 用户名</th><th>登录状态</th><th>管理员</th><th>管理员开关</th></tr></thead><tbody id="adminUserList"></tbody></table></div>
+
+    <div style="margin-top:28px">
+      <div class="admin-header"><div class="admin-title">🎟️ 邀请码管理</div><div><button class="btn btn-primary" onclick="generateInvite()" style="font-size:12px;padding:6px 14px">+ 生成邀请码</button></div></div>
+      <div class="table-container"><table class="admin-table"><thead><tr><th>邀请码</th><th>状态</th><th>使用者</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="inviteList"></tbody></table></div>
+    </div>
   </div>
 </div>
 <!-- Modals -->
