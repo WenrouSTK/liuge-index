@@ -14,6 +14,8 @@
   }
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh}
+
+  /* ===== Login ===== */
   .login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;overflow:hidden}
   .login-page::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 40%,rgba(245,158,11,0.06) 0%,transparent 50%),radial-gradient(circle at 70% 60%,rgba(239,68,68,0.04) 0%,transparent 50%);animation:bgFloat 20s ease-in-out infinite}
   @keyframes bgFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(-2%,2%)}}
@@ -37,12 +39,15 @@
   .login-step span{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--border-color);margin:0 4px;vertical-align:middle}
   .login-step span.active{background:var(--gold)}.confirm-section{display:none}.confirm-section.active{display:block}
   .page{display:none}.page.active{display:block}.login-page.hidden{display:none}
+
+  /* ===== Header ===== */
   .header{background:var(--bg-secondary);border-bottom:1px solid var(--border-color);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
   .header-left{display:flex;align-items:center;gap:12px}
   .logo{font-size:28px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
-  .logo-sub{font-size:12px;color:var(--text-muted);margin-top:2px}.header-right{display:flex;align-items:center;gap:10px}
+  .logo-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
+  .header-right{display:flex;align-items:center;gap:10px}
   .market-time{font-size:12px;color:var(--text-muted);text-align:right}
-  .market-time .time{font-size:16px;color:var(--text-secondary);font-weight:600;font-variant-numeric:tabular-nums}
+  .market-time .time{font-size:14px;color:var(--text-secondary);font-weight:600;font-variant-numeric:tabular-nums}
   .user-info{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-color);font-size:13px;color:var(--text-secondary)}
   .user-info .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;overflow:hidden}
   .user-info .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
@@ -51,23 +56,31 @@
   .hdr-btn-logout{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,0.2)}.hdr-btn-logout:hover{background:rgba(239,68,68,0.2);border-color:var(--red)}
   .btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:13px;transition:all 0.2s;display:flex;align-items:center;gap:6px}.btn:hover{background:var(--bg-hover);border-color:var(--accent)}
   .btn-primary{background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;font-weight:600}.btn-primary:hover{opacity:0.9;transform:translateY(-1px);box-shadow:0 4px 12px rgba(245,158,11,0.3)}
+
+  /* ===== Main ===== */
   .main{max-width:1400px;margin:0 auto;padding:20px 24px}
-  .stats-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
-  .stat-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:14px 20px;flex:1;min-width:140px}
-  .stat-card .label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-  .stat-card .value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
   .table-container{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;overflow:hidden}
-  .table-header{display:grid;grid-template-columns:30px 160px 150px 95px 105px 165px 165px 85px 45px;padding:12px 16px;background:var(--bg-card);border-bottom:1px solid var(--border-color);font-size:12px;color:var(--text-muted);letter-spacing:0.5px;font-weight:600;gap:6px;align-items:center}
-  .stock-row{display:grid;grid-template-columns:30px 160px 150px 95px 105px 165px 165px 85px 45px;padding:10px 16px;border-bottom:1px solid var(--border-color);align-items:center;transition:all 0.15s;gap:6px;user-select:none}
-  .stock-row:hover{background:var(--bg-hover)}.stock-row:last-child{border-bottom:none}
-  .stock-row.dragging{opacity:0.5;background:var(--bg-hover);box-shadow:0 4px 20px rgba(0,0,0,0.3)}.stock-row.drag-over{border-top:2px solid var(--gold)}
+
+  /* Desktop table — admin 9 columns */
+  .table-header-admin{display:grid;grid-template-columns:30px 160px 150px 100px 100px 155px 155px 85px 45px;padding:12px 16px;background:var(--bg-card);border-bottom:1px solid var(--border-color);font-size:12px;color:var(--text-muted);letter-spacing:0.5px;font-weight:600;gap:6px;align-items:center}
+  .stock-row-admin{display:grid;grid-template-columns:30px 160px 150px 100px 100px 155px 155px 85px 45px;padding:10px 16px;border-bottom:1px solid var(--border-color);align-items:center;transition:all 0.15s;gap:6px;user-select:none}
+
+  /* Desktop table — user 8 columns (no drag, no delete) */
+  .table-header-user{display:grid;grid-template-columns:160px 150px 100px 100px 155px 155px 85px;padding:12px 16px;background:var(--bg-card);border-bottom:1px solid var(--border-color);font-size:12px;color:var(--text-muted);letter-spacing:0.5px;font-weight:600;gap:6px;align-items:center}
+  .stock-row-user{display:grid;grid-template-columns:160px 150px 100px 100px 155px 155px 85px;padding:10px 16px;border-bottom:1px solid var(--border-color);align-items:center;transition:all 0.15s;gap:6px}
+
+  .stock-row-admin:hover,.stock-row-user:hover{background:var(--bg-hover)}
+  .stock-row-admin:last-child,.stock-row-user:last-child{border-bottom:none}
+  .stock-row-admin.dragging{opacity:0.5;background:var(--bg-hover);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+  .stock-row-admin.drag-over,.stock-row-user.drag-over{border-top:2px solid var(--gold)}
   .drag-handle{cursor:grab;color:var(--text-muted);font-size:14px;display:flex;align-items:center;justify-content:center;padding:4px;border-radius:4px;transition:all 0.15s;touch-action:none}
   .drag-handle:hover{color:var(--text-secondary);background:var(--bg-hover)}.drag-handle:active{cursor:grabbing}
   .stock-info .name{font-size:15px;font-weight:600;margin-bottom:2px}
   .stock-info .name a{color:inherit;text-decoration:none;transition:all 0.15s}.stock-info .name a:hover{text-decoration:underline;filter:brightness(1.2)}
   .stock-info .code{font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums}
   .kline-cell{display:flex;align-items:center;justify-content:center}
-  .change-cell{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}.price-cell{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+  .change-cell{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+  .price-cell{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
   .editable-group{display:flex;flex-direction:column;gap:3px}.editable-row{display:flex;align-items:center;gap:4px;font-size:12px}
   .editable-row .label{color:var(--text-muted);font-size:10px;width:28px;flex-shrink:0}
   .editable-input{background:transparent;border:1px solid transparent;color:var(--text-primary);font-size:13px;padding:2px 6px;border-radius:4px;width:100%;font-variant-numeric:tabular-nums;transition:all 0.2s}
@@ -78,6 +91,8 @@
   .target-btn.yes{color:var(--text-muted);border-color:var(--border-color);background:rgba(110,118,129,0.1)}.target-btn.no{color:var(--gold);border-color:var(--gold);background:rgba(245,158,11,0.1)}.target-btn:hover{transform:scale(1.05)}
   .delete-btn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s}.delete-btn:hover{background:rgba(239,68,68,0.15);color:var(--red)}
   .c-red{color:var(--red)}.c-green{color:var(--green)}.c-gray{color:var(--gray)}
+
+  /* ===== Modal ===== */
   .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
   .modal-overlay.active{opacity:1;pointer-events:all}
   .modal{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:16px;padding:28px;width:420px;max-width:90vw;transform:translateY(20px);transition:transform 0.2s}
@@ -89,6 +104,8 @@
   .refresh-indicator{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)}
   .refresh-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
   .refresh-indicator.error .refresh-dot{background:var(--red);animation:none}
+
+  /* ===== Admin Page ===== */
   .admin-table{width:100%;border-collapse:collapse;margin-top:16px}
   .admin-table th,.admin-table td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--border-color);font-size:13px}
   .admin-table th{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;background:var(--bg-card)}
@@ -105,9 +122,51 @@
   .admin-avatar-cell{display:flex;align-items:center;gap:10px}
   .admin-avatar-img{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;overflow:hidden;cursor:pointer;transition:opacity 0.2s;flex-shrink:0}
   .admin-avatar-img:hover{opacity:0.8}.admin-avatar-img img{width:100%;height:100%;object-fit:cover}.name-over-limit{color:var(--red)!important}
+
+  /* ===== Mobile User Layout ===== */
+  .mobile-stock-list{display:none}
+  .desktop-table{display:block}
+
+  @media(max-width:768px){
+    .header{padding:12px 16px;flex-wrap:wrap;gap:8px}
+    .header-left .logo{font-size:22px}
+    .header-right{flex-wrap:wrap;gap:6px;justify-content:flex-end}
+    .main{padding:12px}
+    .desktop-table{display:none!important}
+    .mobile-stock-list{display:block!important}
+
+    .m-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:12px;margin-bottom:8px}
+    .m-card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .m-card-info{flex:1;min-width:0}
+    .m-card-info .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .m-card-info .name a{color:inherit;text-decoration:none}
+    .m-card-info .code{font-size:10px;color:var(--text-muted)}
+    .m-card-kline{width:80px;height:32px;flex-shrink:0}
+    .m-card-price{text-align:right;flex-shrink:0}
+    .m-card-price .price{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+    .m-card-price .change{font-size:12px;font-weight:600}
+    .m-card-bottom{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-muted);flex-wrap:wrap}
+    .m-card-bottom .tag{padding:2px 6px;border-radius:4px;background:var(--bg-card);border:1px solid var(--border-color)}
+    .m-card-bottom .target-tag{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-left:auto}
+    .m-card-bottom .target-tag.no{color:var(--gold);border:1px solid var(--gold);background:rgba(245,158,11,0.1)}
+    .m-card-bottom .target-tag.yes{color:var(--text-muted);border:1px solid var(--border-color);background:rgba(110,118,129,0.1)}
+
+    .market-time .time{font-size:12px}
+    .user-info{padding:4px 8px;font-size:12px}
+    .hdr-btn{padding:4px 8px;font-size:11px}
+    .btn-primary{padding:6px 12px;font-size:12px}
+  }
+
+  @media(min-width:769px) and (max-width:1200px){
+    .table-header-admin,.stock-row-admin{grid-template-columns:25px 135px 130px 85px 90px 140px 130px 80px 40px}
+    .table-header-user,.stock-row-user{grid-template-columns:135px 130px 85px 90px 140px 130px 80px}
+  }
+  @media(min-width:769px) and (max-width:900px){
+    .table-container{overflow-x:auto}
+    .table-header-admin,.stock-row-admin{min-width:900px}
+    .table-header-user,.stock-row-user{min-width:750px}
+  }
   ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px}
-  @media(max-width:1200px){.table-header,.stock-row{grid-template-columns:25px 130px 130px 75px 95px 140px 130px 75px 35px}}
-  @media(max-width:900px){.table-container{overflow-x:auto}.table-header,.stock-row{min-width:950px}}
 </style>
 </head>
 <body>
@@ -137,10 +196,10 @@
 <!-- App -->
 <div class="page" id="appPage">
   <div class="header">
-    <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">股票盯盘 · 实时监控</div></div></div>
+    <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">庄股有色，天天涨停</div></div></div>
     <div class="header-right">
       <div class="refresh-indicator" id="refreshIndicator"><span class="refresh-dot"></span><span id="refreshText">实时更新中</span></div>
-      <div class="market-time"><div class="time" id="clock">--:--:--</div><div id="marketStatus">加载中...</div></div>
+      <div class="market-time"><div id="marketStatus">加载中...</div><div class="time" id="clock">--:--:--</div></div>
       <div class="user-info"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span>
         <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin()">⚙ 管理</button>
         <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
@@ -148,11 +207,15 @@
     </div>
   </div>
   <div class="main">
-    <!-- 统计栏已移除 -->
-    <div class="table-container">
-      <div class="table-header"><div></div><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">涨跌幅</div><div style="text-align:right">当前价格</div><div style="text-align:center">目标 / 成本价</div><div>消息来源</div><div style="text-align:center">达标</div><div></div></div>
-      <div id="stockList"><div class="empty-state"><div class="icon">📊</div><div class="text">暂无股票，点击右上角"添加股票"开始盯盘</div></div></div>
+    <!-- Desktop table -->
+    <div class="desktop-table">
+      <div class="table-container">
+        <div id="tableHeader"></div>
+        <div id="stockList"></div>
+      </div>
     </div>
+    <!-- Mobile cards -->
+    <div class="mobile-stock-list" id="mobileStockList"></div>
   </div>
 </div>
 <!-- Admin -->
