@@ -193,6 +193,15 @@ app.get('/api/stocks', auth, (req, res) => {
   res.json(all('SELECT * FROM stocks ORDER BY sort_order, id'));
 });
 
+// 排序 — 仅管理员（必须在 :id 路由前面，否则 'reorder' 会被当作 :id）
+app.put('/api/stocks/reorder', adminAuth, (req, res) => {
+  const { orders } = req.body;
+  if (!orders || !Array.isArray(orders)) return res.status(400).json({ error: '参数错误' });
+  orders.forEach(o => run('UPDATE stocks SET sort_order = ? WHERE id = ?', [o.sort_order, o.id]));
+  saveDb();
+  res.json({ success: true });
+});
+
 app.post('/api/stocks', adminAuth, (req, res) => {
   const { code } = req.body;
   if (!code || !/^\d{6}$/.test(code)) return res.status(400).json({ error: '请输入6位股票代码' });
@@ -221,14 +230,6 @@ app.put('/api/stocks/:id', adminAuth, (req, res) => {
 
 app.delete('/api/stocks/:id', adminAuth, (req, res) => {
   run('DELETE FROM stocks WHERE id = ?', [req.params.id]);
-  saveDb();
-  res.json({ success: true });
-});
-
-app.put('/api/stocks/reorder', adminAuth, (req, res) => {
-  const { orders } = req.body;
-  if (!orders || !Array.isArray(orders)) return res.status(400).json({ error: '参数错误' });
-  orders.forEach(o => run('UPDATE stocks SET sort_order = ? WHERE id = ?', [o.sort_order, o.id]));
   saveDb();
   res.json({ success: true });
 });
