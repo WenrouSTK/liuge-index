@@ -42,15 +42,16 @@ async function loginStep1() {
       // Otherwise, it's a new user — show step 2
       pendingUser = user; pendingPass = pass;
       try {
-        // Try register to see if user exists (will fail with '用户名已存在' or '需要邀请码才能注册')
-        await api('POST', '/api/register', { username: user, password: pass });
-        // If somehow succeeds (first user, no invite needed), we're in
-        // This won't normally happen in step1 flow
+        // Try register — if first user, will succeed without invite code
+        var regRes = await api('POST', '/api/register', { username: user, password: pass });
+        // Success! First user registered as admin
+        authToken = regRes.token; localStorage.setItem('liuge_token', authToken);
+        currentUser = regRes.user; enterApp(); return;
       } catch (e2) {
         if (e2.message === '用户名已存在') {
           err.textContent = '密码错误，请重试'; return;
         }
-        // New user — show step 2 for confirm password + invite code
+        // New user but needs invite code — show step 2
         document.getElementById('loginStep1').style.display = 'none';
         document.getElementById('loginStep2').classList.add('active');
         document.getElementById('loginPassConfirm').value = '';
