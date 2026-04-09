@@ -198,13 +198,18 @@ function drawKline(id, code, W, H) {
   W = W || 140; H = H || 50;
   var s = stocks.find(function(x) { return x.code === code }), ctx = cv.getContext('2d'), dpr = window.devicePixelRatio || 1;
   cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#1c2128'; ctx.fillRect(0, 0, W, H);
-  if (!s || !s.quote || !s.quote.prevClose || s.quote.price <= 0) { ctx.fillStyle = '#6e7681'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('等待数据...', W / 2, H / 2 + 3); return }
+  // 读取当前主题背景色
+  var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  var bgColor = isDark ? '#1c2128' : '#f7f7f8';
+  var gridColor = isDark ? 'rgba(110,118,129,0.35)' : 'rgba(0,0,0,0.1)';
+  var labelColor = isDark ? '#6e7681' : '#9a9a9e';
+  ctx.fillStyle = bgColor; ctx.fillRect(0, 0, W, H);
+  if (!s || !s.quote || !s.quote.prevClose || s.quote.price <= 0) { ctx.fillStyle = labelColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('等待数据...', W / 2, H / 2 + 3); return }
   var q = s.quote, pc = q.prevClose, pts = minuteData[code];
-  if (!pts || pts.length < 2) { ctx.fillStyle = '#6e7681'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('加载中...', W / 2, H / 2 + 3); return }
+  if (!pts || pts.length < 2) { ctx.fillStyle = labelColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('加载中...', W / 2, H / 2 + 3); return }
   var all = [pc].concat(pts), mn = Math.min.apply(null, all) * 0.999, mx = Math.max.apply(null, all) * 1.001, rng = mx - mn || 1, pad = 3;
   function toY(v) { return pad + ((mx - v) / rng) * (H - pad * 2) }
-  ctx.strokeStyle = 'rgba(110,118,129,0.35)'; ctx.lineWidth = 0.5; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(0, toY(pc)); ctx.lineTo(W, toY(pc)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = gridColor; ctx.lineWidth = 0.5; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(0, toY(pc)); ctx.lineTo(W, toY(pc)); ctx.stroke(); ctx.setLineDash([]);
   var lp = pts[pts.length - 1], lc = lp > pc ? '#ef4444' : lp < pc ? '#22c55e' : '#6e7681', gr = ctx.createLinearGradient(0, 0, 0, H);
   if (lp >= pc) { gr.addColorStop(0, 'rgba(239,68,68,0.18)'); gr.addColorStop(1, 'rgba(239,68,68,0)') } else { gr.addColorStop(0, 'rgba(34,197,94,0.18)'); gr.addColorStop(1, 'rgba(34,197,94,0)') }
   var sx = W / (pts.length - 1 || 1);
@@ -459,7 +464,33 @@ async function refreshAll() {
   if (refreshFailed) { el.classList.add('error'); tx.textContent = '连接异常'; if(elM){elM.classList.add('error');txM.textContent='连接异常'} } else { el.classList.remove('error'); tx.textContent = '实时更新中'; if(elM){elM.classList.remove('error');txM.textContent='实时更新中'} }
 }
 
-function updateClock() { var n = new Date(); var timeStr = [n.getHours(), n.getMinutes(), n.getSeconds()].map(function(v) { return String(v).padStart(2, '0') }).join(':'); document.getElementById('clock').textContent = timeStr; var cm = document.getElementById('clockM'); if (cm) cm.textContent = timeStr; var d = n.getDay(), hm = n.getHours() * 100 + n.getMinutes(); var s = '休市'; if (d >= 1 && d <= 5) { if (hm >= 915 && hm < 925) s = '集合竞价'; else if (hm >= 925 && hm < 930) s = '即将开盘'; else if (hm >= 930 && hm < 1130) s = '🔴 交易中（上午）'; else if (hm >= 1130 && hm < 1300) s = '午间休市'; else if (hm >= 1300 && hm < 1500) s = '🔴 交易中（下午）'; else if (hm >= 1500) s = '已收盘'; else s = '未开盘' } document.getElementById('marketStatus').textContent = s; var msm = document.getElementById('marketStatusM'); if (msm) msm.textContent = s }
+function updateClock() {
+  var n = new Date();
+  var timeStr = [n.getHours(), n.getMinutes(), n.getSeconds()].map(function(v) { return String(v).padStart(2, '0') }).join(':');
+  document.getElementById('clock').textContent = timeStr;
+  var cm = document.getElementById('clockM'); if (cm) cm.textContent = timeStr;
+
+  var d = n.getDay(), hm = n.getHours() * 100 + n.getMinutes();
+  var s = '休市';
+  var isTrading = false;
+  if (d >= 1 && d <= 5) {
+    if (hm >= 915 && hm < 925) { s = '集合竞价'; isTrading = true; }
+    else if (hm >= 925 && hm < 930) { s = '即将开盘'; isTrading = true; }
+    else if (hm >= 930 && hm < 1130) { s = '交易中'; isTrading = true; }
+    else if (hm >= 1130 && hm < 1300) { s = '午间休市'; isTrading = true; }
+    else if (hm >= 1300 && hm < 1500) { s = '交易中'; isTrading = true; }
+    else if (hm >= 1500) { s = '已收盘'; }
+    else { s = '未开盘'; }
+  }
+  document.getElementById('marketStatus').textContent = s;
+  var msm = document.getElementById('marketStatusM'); if (msm) msm.textContent = s;
+
+  // 自动切换主题：交易时段 → 白底，非交易时段 → 黑底
+  var theme = isTrading ? 'light' : 'dark';
+  if (document.documentElement.getAttribute('data-theme') !== theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+}
 
 // ============================================================
 // 9. Init
