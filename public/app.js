@@ -347,14 +347,12 @@ function renderStocks() {
       var url = getEastmoneyUrl(s.code);
       var noteText = s.source || '';
       return '<div class="m-card">' +
-        '<div class="m-card-top">' +
-          '<div class="m-card-left">' +
-            '<div class="m-card-info"><div class="name ' + cl + '"><a href="' + url + '" target="_blank" rel="noopener">' + nm + '</a></div><div class="code">' + s.code + '</div></div>' +
-            '<div class="m-card-kline"><canvas id="mkline-' + s.code + '" width="80" height="32" style="width:80px;height:32px;border-radius:4px"></canvas></div>' +
-          '</div>' +
-          '<div class="m-card-price"><div class="price ' + cl + '">' + prS + '</div><div class="change ' + cl + '">' + chgS + '</div></div>' +
+        '<div class="m-row1">' +
+          '<div class="m-name-block"><div class="name ' + cl + '"><a href="' + url + '" target="_blank" rel="noopener">' + nm + '</a></div><div class="code">' + s.code + '</div></div>' +
+          '<div class="m-price-block"><div class="price ' + cl + '">' + prS + '</div><div class="change ' + cl + '">' + chgS + '</div></div>' +
         '</div>' +
-        '<div class="m-card-bottom">' +
+        '<div class="m-row-kline"><canvas id="mkline-' + s.code + '" width="320" height="40" style="width:100%;height:40px;border-radius:4px"></canvas></div>' +
+        '<div class="m-row-meta">' +
           '<span class="tag">成本:' + (s.cost_price || '--') + '</span>' +
           '<span class="tag">目标:' + (s.target_price || '--') + '</span>' +
           '<span class="target-tag ' + (s.reached ? 'yes' : 'no') + '">' + (s.reached ? '已达标' : '未达标') + '</span>' +
@@ -364,11 +362,16 @@ function renderStocks() {
     }).join('');
   }
 
-  // Draw desktop klines
+  // Draw klines
   setTimeout(function() {
     stocks.forEach(function(s) {
       drawKline('kline-' + s.code, s.code);
-      drawKline('mkline-' + s.code, s.code, 80, 32);
+      // 移动端canvas自适应宽度
+      var mCv = document.getElementById('mkline-' + s.code);
+      if (mCv) {
+        var mW = mCv.parentElement.clientWidth || 320;
+        drawKline('mkline-' + s.code, s.code, mW, 40);
+      }
     });
   }, 0);
 }
