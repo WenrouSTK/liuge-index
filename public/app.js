@@ -455,10 +455,11 @@ async function refreshAll() {
     refreshFailed = !got;
   } catch (e) { refreshFailed = true }
   var el = document.getElementById('refreshIndicator'), tx = document.getElementById('refreshText');
-  if (refreshFailed) { el.classList.add('error'); tx.textContent = '连接异常' } else { el.classList.remove('error'); tx.textContent = '实时更新中' }
+  var elM = document.getElementById('refreshIndicatorM'), txM = document.getElementById('refreshTextM');
+  if (refreshFailed) { el.classList.add('error'); tx.textContent = '连接异常'; if(elM){elM.classList.add('error');txM.textContent='连接异常'} } else { el.classList.remove('error'); tx.textContent = '实时更新中'; if(elM){elM.classList.remove('error');txM.textContent='实时更新中'} }
 }
 
-function updateClock() { var n = new Date(); document.getElementById('clock').textContent = [n.getHours(), n.getMinutes(), n.getSeconds()].map(function(v) { return String(v).padStart(2, '0') }).join(':'); var d = n.getDay(), hm = n.getHours() * 100 + n.getMinutes(); var s = '休市'; if (d >= 1 && d <= 5) { if (hm >= 915 && hm < 925) s = '集合竞价'; else if (hm >= 925 && hm < 930) s = '即将开盘'; else if (hm >= 930 && hm < 1130) s = '🔴 交易中（上午）'; else if (hm >= 1130 && hm < 1300) s = '午间休市'; else if (hm >= 1300 && hm < 1500) s = '🔴 交易中（下午）'; else if (hm >= 1500) s = '已收盘'; else s = '未开盘' } document.getElementById('marketStatus').textContent = s }
+function updateClock() { var n = new Date(); var timeStr = [n.getHours(), n.getMinutes(), n.getSeconds()].map(function(v) { return String(v).padStart(2, '0') }).join(':'); document.getElementById('clock').textContent = timeStr; var cm = document.getElementById('clockM'); if (cm) cm.textContent = timeStr; var d = n.getDay(), hm = n.getHours() * 100 + n.getMinutes(); var s = '休市'; if (d >= 1 && d <= 5) { if (hm >= 915 && hm < 925) s = '集合竞价'; else if (hm >= 925 && hm < 930) s = '即将开盘'; else if (hm >= 930 && hm < 1130) s = '🔴 交易中（上午）'; else if (hm >= 1130 && hm < 1300) s = '午间休市'; else if (hm >= 1300 && hm < 1500) s = '🔴 交易中（下午）'; else if (hm >= 1500) s = '已收盘'; else s = '未开盘' } document.getElementById('marketStatus').textContent = s; var msm = document.getElementById('marketStatusM'); if (msm) msm.textContent = s }
 
 // ============================================================
 // 9. Init

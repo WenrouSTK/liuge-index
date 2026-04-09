@@ -41,7 +41,11 @@
   .page{display:none}.page.active{display:block}.login-page.hidden{display:none}
 
   /* ===== Header ===== */
-  .header{background:var(--bg-secondary);border-bottom:1px solid var(--border-color);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+  .header{background:var(--bg-secondary);border-bottom:1px solid var(--border-color);padding:0;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+  .header-row1{display:flex;align-items:center;justify-content:space-between;padding:16px 24px}
+  .header-row2{display:none}
+  .desktop-only{display:inline-flex}
+  .mobile-only{display:none}
   .header-left{display:flex;align-items:center;gap:12px}
   .logo{font-size:28px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
   .logo-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
@@ -130,7 +134,10 @@
   .desktop-table{display:block}
 
   @media(max-width:768px){
-    .header{padding:12px 16px;flex-wrap:wrap;gap:8px}
+    .header-row1{padding:12px 16px}
+    .header-row2{display:flex!important;align-items:center;justify-content:center;gap:10px;padding:8px 16px;border-top:1px solid var(--border-color);font-size:12px}
+    .desktop-only{display:none!important}
+    .mobile-only{display:flex!important}
     .header-left .logo{font-size:22px}
     .header-right{flex-wrap:wrap;gap:6px;justify-content:flex-end}
     .main{padding:12px}
@@ -207,16 +214,24 @@
 <!-- App -->
 <div class="page" id="appPage">
   <div class="header">
-    <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">庄股有色，天天涨停</div></div></div>
-    <div class="header-right">
-      <div class="refresh-indicator" id="refreshIndicator"><span class="refresh-dot"></span><span id="refreshText">实时更新中</span></div>
-      <div class="market-time"><div id="marketStatus">加载中...</div><div class="time" id="clock">--:--:--</div></div>
-      <div class="user-info"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span>
-        <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin()">⚙ 管理</button>
-        <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
-      <button class="btn" id="editModeBtn" onclick="toggleEditMode()" style="display:none">✏️ 编辑</button>
-      <button class="btn btn-primary" id="saveModeBtn" onclick="saveAllChanges()" style="display:none">💾 保存</button>
-      <button class="btn btn-primary" id="addStockBtn" onclick="openAddModal()" style="display:none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>添加股票</button>
+    <div class="header-row1">
+      <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">庄股有色，天天涨停</div></div></div>
+      <div class="header-right">
+        <div class="refresh-indicator desktop-only" id="refreshIndicator"><span class="refresh-dot"></span><span id="refreshText">实时更新中</span></div>
+        <div class="market-time desktop-only"><div id="marketStatus">加载中...</div><div class="time" id="clock">--:--:--</div></div>
+        <div class="user-info"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span>
+          <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin()">⚙ 管理</button>
+          <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
+        <button class="btn" id="editModeBtn" onclick="toggleEditMode()" style="display:none">✏️ 编辑</button>
+        <button class="btn btn-primary" id="saveModeBtn" onclick="saveAllChanges()" style="display:none">💾 保存</button>
+        <button class="btn btn-primary" id="addStockBtn" onclick="openAddModal()" style="display:none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>添加股票</button>
+      </div>
+    </div>
+    <div class="header-row2 mobile-only">
+      <div class="refresh-indicator" id="refreshIndicatorM"><span class="refresh-dot"></span><span id="refreshTextM">实时更新中</span></div>
+      <div class="market-time"><div class="time" id="clockM">--:--:--</div><div id="marketStatusM">加载中...</div></div>
+    </div>
+  </div>
     </div>
   </div>
   <div class="main">
