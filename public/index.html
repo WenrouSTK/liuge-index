@@ -204,6 +204,8 @@
       <div class="user-info"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span>
         <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin()">⚙ 管理</button>
         <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
+      <button class="btn" id="editModeBtn" onclick="toggleEditMode()" style="display:none">✏️ 编辑</button>
+      <button class="btn btn-primary" id="saveModeBtn" onclick="saveAllChanges()" style="display:none">💾 保存</button>
       <button class="btn btn-primary" id="addStockBtn" onclick="openAddModal()" style="display:none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>添加股票</button>
     </div>
   </div>

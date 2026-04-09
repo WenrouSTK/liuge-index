@@ -102,6 +102,7 @@ function enterApp() {
   if (u.avatar) av.innerHTML = '<img src="' + u.avatar + '">'; else av.textContent = (u.display_name || u.username).charAt(0).toUpperCase();
   document.getElementById('adminLink').style.display = u.is_admin ? 'inline-flex' : 'none';
   document.getElementById('addStockBtn').style.display = u.is_admin ? 'inline-flex' : 'none';
+  document.getElementById('editModeBtn').style.display = u.is_admin ? 'inline-flex' : 'none';
   renderTableHeader();
   initApp();
 }
@@ -216,6 +217,45 @@ function drawKline(id, code, W, H) {
 function fetchQuotesBatch(codes) { if (!codes.length) return Promise.resolve({}); return new Promise(function(r) { var syms = codes.map(function(c) { return getMarketPrefix(c) + c }).join(','), sc = document.createElement('script'); sc.src = 'https://qt.gtimg.cn/q=' + syms + '&_=' + Date.now(); var t = setTimeout(function() { cl(); r({}) }, 8000); function cl() { clearTimeout(t); if (sc.parentNode) sc.parentNode.removeChild(sc) } sc.onload = function() { var res = {}; codes.forEach(function(code) { try { var sym = getMarketPrefix(code) + code, raw = window['v_' + sym]; if (raw && typeof raw === 'string' && raw.length > 10) { var p = raw.split('~'); if (p.length >= 45) res[code] = { code: code, name: p[1], open: +p[5], prevClose: +p[4], price: +p[3], high: +p[33] || +p[41], low: +p[34] || +p[42], volume: +p[6], amount: +p[37], change: +p[31], changePercent: +p[32] } } } catch (e) {} }); cl(); r(res) }; sc.onerror = function() { cl(); r({}) }; document.head.appendChild(sc) }) }
 
 // ============================================================
+// 3.5 Edit Mode — 编辑/保存模式
+// ============================================================
+var editMode = false;
+
+function toggleEditMode() {
+  editMode = true;
+  document.getElementById('editModeBtn').style.display = 'none';
+  document.getElementById('saveModeBtn').style.display = 'inline-flex';
+  document.getElementById('addStockBtn').style.display = 'none';
+  renderStocks();
+}
+
+async function saveAllChanges() {
+  // 收集所有编辑中的字段
+  var rows = document.querySelectorAll('[data-idx]');
+  var promises = [];
+  rows.forEach(function(row) {
+    var idx = +row.dataset.idx;
+    var s = stocks[idx];
+    if (!s || !s.id) return;
+    var targetInput = row.querySelector('[data-field="target_price"]');
+    var costInput = row.querySelector('[data-field="cost_price"]');
+    var sourceInput = row.querySelector('[data-field="source"]');
+    var body = {};
+    var changed = false;
+    if (targetInput && targetInput.value !== (s.target_price || '')) { body.target_price = targetInput.value; s.target_price = targetInput.value; changed = true; }
+    if (costInput && costInput.value !== (s.cost_price || '')) { body.cost_price = costInput.value; s.cost_price = costInput.value; changed = true; }
+    if (sourceInput && sourceInput.value !== (s.source || '')) { body.source = sourceInput.value; s.source = sourceInput.value; changed = true; }
+    if (changed) promises.push(api('PUT', '/api/stocks/' + s.id, body).catch(function() {}));
+  });
+  if (promises.length) await Promise.all(promises);
+  editMode = false;
+  document.getElementById('editModeBtn').style.display = 'inline-flex';
+  document.getElementById('saveModeBtn').style.display = 'none';
+  if (currentUser && currentUser.is_admin) document.getElementById('addStockBtn').style.display = 'inline-flex';
+  renderStocks();
+}
+
+// ============================================================
 // 4. Table Header (admin vs user)
 // ============================================================
 function renderTableHeader() {
@@ -254,40 +294,43 @@ function renderStocks() {
     var cl = s.quote ? colc(chg) : 'c-gray';
     var nm = s.quote ? s.quote.name : (s.name || '加载中...');
     var url = getEastmoneyUrl(s.code);
-    var dragAttrs = isAdmin ? ' draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)" ontouchstart="touchStart(event,' + i + ')" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)"' : '';
+    var dragAttrs = (isAdmin && editMode) ? ' draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)" ontouchstart="touchStart(event,' + i + ')" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)"' : '';
 
     var html = '<div class="' + rowClass + '" data-idx="' + i + '"' + dragAttrs + '>';
 
-    if (isAdmin) html += '<div class="drag-handle" title="拖拽排序">⠿</div>';
+    if (isAdmin && editMode) html += '<div class="drag-handle" title="拖拽排序">⠿</div>';
+    else if (isAdmin) html += '<div style="width:30px"></div>';
 
     html += '<div class="stock-info"><div class="name ' + cl + '"><a href="' + url + '" target="_blank" rel="noopener">' + nm + '</a></div><div class="code">' + s.code + '</div></div>';
     html += '<div class="kline-cell"><canvas id="kline-' + s.code + '" width="140" height="50" style="width:140px;height:50px;border-radius:4px"></canvas></div>';
     html += '<div class="price-cell ' + cl + '" style="text-align:right">' + prS + '</div>';
     html += '<div class="change-cell ' + cl + '" style="text-align:right">' + chgS + '</div>';
 
-    // 目标/成本
+    // 目标/成本 — 编辑模式才可编辑
+    var canEdit = isAdmin && editMode;
     html += '<div class="editable-group"><div class="editable-row"><span class="label">目标</span>';
-    if (isAdmin) html += '<input class="editable-input" type="text" value="' + (s.target_price || '') + '" placeholder="--" onchange="updateField(' + i + ',\'target_price\',this.value)">';
+    if (canEdit) html += '<input class="editable-input" type="text" data-field="target_price" value="' + (s.target_price || '') + '" placeholder="--">';
     else html += '<span class="editable-display">' + (s.target_price || '--') + '</span>';
     html += '</div><div class="editable-row"><span class="label">成本</span>';
-    if (isAdmin) html += '<input class="editable-input" type="text" value="' + (s.cost_price || '') + '" placeholder="--" onchange="updateField(' + i + ',\'cost_price\',this.value)">';
+    if (canEdit) html += '<input class="editable-input" type="text" data-field="cost_price" value="' + (s.cost_price || '') + '" placeholder="--">';
     else html += '<span class="editable-display">' + (s.cost_price || '--') + '</span>';
     html += '</div></div>';
 
     // 备注
     html += '<div>';
-    if (isAdmin) html += '<input class="editable-input source-input" type="text" value="' + (s.source || '') + '" placeholder="添加备注..." onchange="updateField(' + i + ',\'source\',this.value)">';
+    if (canEdit) html += '<input class="editable-input source-input" type="text" data-field="source" value="' + (s.source || '') + '" placeholder="添加备注...">';
     else html += '<span class="editable-display" style="font-size:12px">' + (s.source || '--') + '</span>';
     html += '</div>';
 
     // 达标
     html += '<div style="text-align:center">';
-    if (isAdmin) html += '<button class="target-btn ' + (s.reached ? 'yes' : 'no') + '" onclick="toggleReached(' + i + ')">' + (s.reached ? '已达标' : '未达标') + '</button>';
+    if (canEdit) html += '<button class="target-btn ' + (s.reached ? 'yes' : 'no') + '" onclick="toggleReached(' + i + ')">' + (s.reached ? '已达标' : '未达标') + '</button>';
     else html += '<span class="target-btn ' + (s.reached ? 'yes' : 'no') + '" style="cursor:default">' + (s.reached ? '已达标' : '未达标') + '</span>';
     html += '</div>';
 
-    // 删除
-    if (isAdmin) html += '<div style="text-align:center"><button class="delete-btn" onclick="removeStock(' + i + ')" title="删除">✕</button></div>';
+    // 删除 — 编辑模式才显示
+    if (canEdit) html += '<div style="text-align:center"><button class="delete-btn" onclick="removeStock(' + i + ')" title="删除">✕</button></div>';
+    else if (isAdmin) html += '<div></div>';
 
     html += '</div>';
     return html;
@@ -374,23 +417,25 @@ document.getElementById('addModal').addEventListener('click', function(e) { if (
 var refreshFailed = false;
 async function refreshAll() {
   if (!stocks.length) return;
-  // 每次刷新时从服务器重新拉取股票列表（保持排序同步）
-  try {
-    var serverStocks = await api('GET', '/api/stocks');
-    if (serverStocks && serverStocks.length) {
-      // 保留已有的quote数据
-      var quoteMap = {};
-      stocks.forEach(function(s) { if (s.quote) quoteMap[s.code] = s.quote });
-      stocks = serverStocks;
-      stocks.forEach(function(s) { if (quoteMap[s.code]) s.quote = quoteMap[s.code] });
-    }
-  } catch (e) {}
+  // 编辑模式下不从服务器拉取列表，避免覆盖编辑中的内容
+  if (!editMode) {
+    try {
+      var serverStocks = await api('GET', '/api/stocks');
+      if (serverStocks && serverStocks.length) {
+        var quoteMap = {};
+        stocks.forEach(function(s) { if (s.quote) quoteMap[s.code] = s.quote });
+        stocks = serverStocks;
+        stocks.forEach(function(s) { if (quoteMap[s.code]) s.quote = quoteMap[s.code] });
+      }
+    } catch (e) {}
+  }
   try {
     var codes = stocks.map(function(s) { return s.code });
     var res = await fetchQuotesBatch(codes);
     var got = false;
     codes.forEach(function(c, i) { if (res[c]) { stocks[i].quote = res[c]; stocks[i].name = res[c].name; got = true } });
-    renderStocks(); refreshFailed = !got;
+    if (!editMode) renderStocks();
+    refreshFailed = !got;
   } catch (e) { refreshFailed = true }
   var el = document.getElementById('refreshIndicator'), tx = document.getElementById('refreshText');
   if (refreshFailed) { el.classList.add('error'); tx.textContent = '连接异常' } else { el.classList.remove('error'); tx.textContent = '实时更新中' }
