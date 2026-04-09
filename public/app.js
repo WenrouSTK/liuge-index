@@ -318,8 +318,8 @@ function renderStocks() {
 
     // 备注
     html += '<div>';
-    if (canEdit) html += '<input class="editable-input source-input" type="text" data-field="source" value="' + (s.source || '') + '" placeholder="添加备注...">';
-    else html += '<span class="editable-display" style="font-size:12px">' + (s.source || '--') + '</span>';
+    if (canEdit) html += '<textarea class="editable-input source-input" data-field="source" rows="3" placeholder="添加备注...">' + (s.source || '') + '</textarea>';
+    else html += '<span class="editable-display" style="font-size:12px;white-space:pre-wrap">' + (s.source || '--') + '</span>';
     html += '</div>';
 
     // 达标
