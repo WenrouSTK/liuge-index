@@ -336,7 +336,7 @@ function renderStocks() {
     return html;
   }).join('');
 
-  // Mobile cards
+  // Mobile cards — Robinhood style
   if (mobileList) {
     mobileList.innerHTML = stocks.map(function(s, i) {
       var chg = s.quote ? ((s.quote.price - s.quote.prevClose) / s.quote.prevClose * 100) : 0;
@@ -346,19 +346,17 @@ function renderStocks() {
       var nm = s.quote ? s.quote.name : (s.name || '加载中...');
       var url = getEastmoneyUrl(s.code);
       var noteText = s.source || '';
-      return '<div class="m-card">' +
-        '<div class="m-row1">' +
-          '<div class="m-name-block"><div class="name ' + cl + '"><a href="' + url + '" target="_blank" rel="noopener">' + nm + '</a></div><div class="code">' + s.code + '</div></div>' +
-          '<div class="m-price-block"><div class="price ' + cl + '">' + prS + '</div><div class="change ' + cl + '">' + chgS + '</div></div>' +
+      return '<a class="m-item" href="' + url + '" target="_blank" rel="noopener">' +
+        '<div class="m-item-left">' +
+          '<div class="m-item-name ' + cl + '">' + nm + '</div>' +
+          '<div class="m-item-code">' + s.code + (noteText ? ' · ' + noteText : '') + '</div>' +
         '</div>' +
-        '<div class="m-row-kline"><canvas id="mkline-' + s.code + '" width="320" height="40" style="width:100%;height:40px;border-radius:4px"></canvas></div>' +
-        '<div class="m-row-meta">' +
-          '<span class="tag">成本:' + (s.cost_price || '--') + '</span>' +
-          '<span class="tag">目标:' + (s.target_price || '--') + '</span>' +
-          '<span class="target-tag ' + (s.reached ? 'yes' : 'no') + '">' + (s.reached ? '已达标' : '未达标') + '</span>' +
+        '<div class="m-item-chart"><canvas id="mkline-' + s.code + '" width="60" height="24" style="width:60px;height:24px"></canvas></div>' +
+        '<div class="m-item-right">' +
+          '<div class="m-item-price ' + cl + '">¥' + prS + '</div>' +
+          '<div class="m-item-change ' + cl + '">' + chgS + '</div>' +
         '</div>' +
-        (noteText ? '<div class="m-card-note">' + noteText + '</div>' : '') +
-      '</div>';
+      '</a>';
     }).join('');
   }
 
@@ -366,12 +364,7 @@ function renderStocks() {
   setTimeout(function() {
     stocks.forEach(function(s) {
       drawKline('kline-' + s.code, s.code);
-      // 移动端canvas自适应宽度
-      var mCv = document.getElementById('mkline-' + s.code);
-      if (mCv) {
-        var mW = mCv.parentElement.clientWidth || 320;
-        drawKline('mkline-' + s.code, s.code, mW, 40);
-      }
+      drawKline('mkline-' + s.code, s.code, 60, 24);
     });
   }, 0);
 }
