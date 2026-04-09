@@ -135,18 +135,31 @@
     .header-right{flex-wrap:wrap;gap:6px;justify-content:flex-end}
     .main{padding:12px}
     .desktop-table{display:none!important}
-    .mobile-stock-list{display:block!important;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:0 14px}
+    .mobile-stock-list{display:block!important}
 
-    .m-item{display:flex;align-items:center;padding:14px 0;border-bottom:1px solid var(--border-color);text-decoration:none;color:inherit;gap:12px;-webkit-tap-highlight-color:transparent}
-    .m-item:active{background:var(--bg-hover);margin:0 -12px;padding:14px 12px;border-radius:8px}
-    .m-item:last-child{border-bottom:none}
-    .m-item-left{flex:1;min-width:0}
-    .m-item-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .m-item-code{font-size:11px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .m-item-chart{flex-shrink:0;width:60px;height:24px}
-    .m-item-right{text-align:right;flex-shrink:0;min-width:70px}
-    .m-item-price{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
-    .m-item-change{font-size:11px;font-weight:600;margin-top:1px}
+    .m-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:14px;margin-bottom:8px}
+
+    /* 第1行：股票名+眼睛 | 分时图 | 价格 */
+    .m-line1{display:flex;align-items:center;gap:6px}
+    .m-line1-left{display:flex;align-items:center;gap:4px;flex-shrink:0}
+    .m-stock-name{font-size:16px;font-weight:700;text-decoration:none;color:inherit}
+    .m-eye{display:inline-flex;align-items:center;flex-shrink:0}
+    .m-line1-chart{flex:1;min-width:60px;height:28px}
+    .m-line1-chart canvas{display:block}
+    .m-line1-price{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0;text-align:right}
+
+    /* 第2行：代码 | 涨跌幅 */
+    .m-line2{display:flex;align-items:center;justify-content:space-between;margin-top:2px}
+    .m-line2-code{font-size:11px;color:var(--text-muted)}
+    .m-line2-right{text-align:right}
+    .m-line2-change{font-size:13px;font-weight:600}
+
+    /* 第3行：成本/目标 */
+    .m-line3{display:flex;align-items:center;justify-content:flex-end;margin-top:2px}
+    .m-line3-meta{font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+
+    /* 第4行：备注 */
+    .m-line4{margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color);font-size:12px;color:var(--text-muted);line-height:1.6;white-space:pre-wrap}
 
     .market-time .time{font-size:12px}
     .user-info{padding:4px 8px;font-size:12px}

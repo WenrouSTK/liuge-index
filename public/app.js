@@ -338,7 +338,7 @@ function renderStocks() {
     return html;
   }).join('');
 
-  // Mobile cards — Robinhood style
+  // Mobile cards — 按设计稿排版
   if (mobileList) {
     mobileList.innerHTML = stocks.map(function(s, i) {
       var chg = s.quote ? ((s.quote.price - s.quote.prevClose) / s.quote.prevClose * 100) : 0;
@@ -348,17 +348,28 @@ function renderStocks() {
       var nm = s.quote ? s.quote.name : (s.name || '加载中...');
       var url = getEastmoneyUrl(s.code);
       var noteText = s.source || '';
-      return '<a class="m-item" href="' + url + '" target="_blank" rel="noopener">' +
-        '<div class="m-item-left">' +
-          '<div class="m-item-name ' + cl + '">' + nm + '</div>' +
-          '<div class="m-item-code">' + s.code + (noteText ? ' · ' + noteText : '') + '</div>' +
+      var eyeSvg = s.reached
+        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#f59e0b" stroke-width="2" fill="rgba(245,158,11,0.15)"/><circle cx="12" cy="12" r="3" stroke="#f59e0b" stroke-width="2" fill="#f59e0b"/><circle cx="12" cy="12" r="1.2" fill="#0d1117"/></svg>'
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="1.2" fill="#6e7681"/></svg>';
+      return '<div class="m-card">' +
+        '<div class="m-line1">' +
+          '<div class="m-line1-left">' +
+            '<a class="m-stock-name ' + cl + '" href="' + url + '" target="_blank" rel="noopener">' + nm + '</a>' +
+            '<span class="m-eye">' + eyeSvg + '</span>' +
+          '</div>' +
+          '<div class="m-line1-chart"><canvas id="mkline-' + s.code + '" width="100" height="28" style="width:100%;height:28px"></canvas></div>' +
+          '<div class="m-line1-price ' + cl + '">¥' + prS + '</div>' +
         '</div>' +
-        '<div class="m-item-chart"><canvas id="mkline-' + s.code + '" width="60" height="24" style="width:60px;height:24px"></canvas></div>' +
-        '<div class="m-item-right">' +
-          '<div class="m-item-price ' + cl + '">¥' + prS + '</div>' +
-          '<div class="m-item-change ' + cl + '">' + chgS + '</div>' +
+        '<div class="m-line2">' +
+          '<div class="m-line2-code">' + s.code + '</div>' +
+          '<div class="m-line2-right"><span class="m-line2-change ' + cl + '">' + chgS + '</span></div>' +
         '</div>' +
-      '</a>';
+        '<div class="m-line3">' +
+          '<div></div>' +
+          '<div class="m-line3-meta">成本:' + (s.cost_price || '--') + '  目标:' + (s.target_price || '--') + '</div>' +
+        '</div>' +
+        (noteText ? '<div class="m-line4">' + noteText + '</div>' : '') +
+      '</div>';
     }).join('');
   }
 
@@ -366,7 +377,11 @@ function renderStocks() {
   setTimeout(function() {
     stocks.forEach(function(s) {
       drawKline('kline-' + s.code, s.code);
-      drawKline('mkline-' + s.code, s.code, 60, 24);
+      var mCv = document.getElementById('mkline-' + s.code);
+      if (mCv) {
+        var mW = mCv.parentElement.clientWidth || 100;
+        drawKline('mkline-' + s.code, s.code, mW, 28);
+      }
     });
   }, 0);
 }
