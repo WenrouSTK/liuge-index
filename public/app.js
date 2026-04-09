@@ -345,10 +345,13 @@ function renderStocks() {
       var cl = s.quote ? colc(chg) : 'c-gray';
       var nm = s.quote ? s.quote.name : (s.name || '加载中...');
       var url = getEastmoneyUrl(s.code);
+      var noteText = s.source || '';
       return '<div class="m-card">' +
         '<div class="m-card-top">' +
-          '<div class="m-card-info"><div class="name ' + cl + '"><a href="' + url + '" target="_blank" rel="noopener">' + nm + '</a></div><div class="code">' + s.code + '</div></div>' +
-          '<div class="m-card-kline"><canvas id="mkline-' + s.code + '" width="80" height="32" style="width:80px;height:32px;border-radius:4px"></canvas></div>' +
+          '<div class="m-card-left">' +
+            '<div class="m-card-info"><div class="name ' + cl + '"><a href="' + url + '" target="_blank" rel="noopener">' + nm + '</a></div><div class="code">' + s.code + '</div></div>' +
+            '<div class="m-card-kline"><canvas id="mkline-' + s.code + '" width="80" height="32" style="width:80px;height:32px;border-radius:4px"></canvas></div>' +
+          '</div>' +
           '<div class="m-card-price"><div class="price ' + cl + '">' + prS + '</div><div class="change ' + cl + '">' + chgS + '</div></div>' +
         '</div>' +
         '<div class="m-card-bottom">' +
@@ -356,6 +359,7 @@ function renderStocks() {
           '<span class="tag">目标:' + (s.target_price || '--') + '</span>' +
           '<span class="target-tag ' + (s.reached ? 'yes' : 'no') + '">' + (s.reached ? '已达标' : '未达标') + '</span>' +
         '</div>' +
+        (noteText ? '<div class="m-card-note">' + noteText + '</div>' : '') +
       '</div>';
     }).join('');
   }
