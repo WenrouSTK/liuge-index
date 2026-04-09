@@ -190,7 +190,7 @@ function fetchMinuteData(code) {
 }
 async function loadAllMinuteData() {
   await Promise.all(stocks.map(async function(s) { var p = await fetchMinuteData(s.code); if (p && p.length > 0) minuteData[s.code] = p }));
-  stocks.forEach(function(s) { drawKline('kline-' + s.code, s.code); drawKline('mkline-' + s.code, s.code, 80, 32) });
+  stocks.forEach(function(s) { drawKline('kline-' + s.code, s.code); var mc = document.getElementById('mkline-' + s.code); if(mc){drawKline('mkline-' + s.code, s.code, mc.parentElement.clientWidth||100, 28)} });
 }
 
 function drawKline(id, code, W, H) {
@@ -200,10 +200,10 @@ function drawKline(id, code, W, H) {
   cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.scale(dpr, dpr);
   // 读取当前主题背景色
   var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-  var bgColor = isDark ? '#1c2128' : '#f7f7f8';
+  // 透明背景，和卡片底色融合
+  ctx.clearRect(0, 0, W, H);
   var gridColor = isDark ? 'rgba(110,118,129,0.35)' : 'rgba(0,0,0,0.1)';
   var labelColor = isDark ? '#6e7681' : '#9a9a9e';
-  ctx.fillStyle = bgColor; ctx.fillRect(0, 0, W, H);
   if (!s || !s.quote || !s.quote.prevClose || s.quote.price <= 0) { ctx.fillStyle = labelColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('等待数据...', W / 2, H / 2 + 3); return }
   var q = s.quote, pc = q.prevClose, pts = minuteData[code];
   if (!pts || pts.length < 2) { ctx.fillStyle = labelColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('加载中...', W / 2, H / 2 + 3); return }
@@ -428,7 +428,7 @@ async function addStock() {
   try { var res = await api('POST', '/api/stocks', { code: code }); ns.id = res.id } catch (e) { alert(e.message); return }
   stocks.push(ns); closeAddModal(); renderStocks();
   var q = await new Promise(function(r) { var sym = getMarketPrefix(code) + code, sc = document.createElement('script'); sc.src = 'https://qt.gtimg.cn/q=' + sym + '&_=' + Date.now(); var t = setTimeout(function() { cl(); r(null) }, 5000); function cl() { clearTimeout(t); if (sc.parentNode) sc.parentNode.removeChild(sc) } sc.onload = function() { try { var raw = window['v_' + sym]; if (raw && typeof raw === 'string' && raw.length > 10) { var p = raw.split('~'); if (p.length >= 45) { cl(); r({ code: code, name: p[1], open: +p[5], prevClose: +p[4], price: +p[3], high: +p[33] || +p[41], low: +p[34] || +p[42] }); return } } } catch (e) {} cl(); r(null) }; sc.onerror = function() { cl(); r(null) }; document.head.appendChild(sc) });
-  if (q) { var idx = stocks.findIndex(function(s) { return s.code === code }); if (idx >= 0) { stocks[idx].quote = q; stocks[idx].name = q.name; renderStocks(); var p = await fetchMinuteData(code); if (p && p.length > 0) { minuteData[code] = p; drawKline('kline-' + code, code); drawKline('mkline-' + code, code, 80, 32) } } }
+  if (q) { var idx = stocks.findIndex(function(s) { return s.code === code }); if (idx >= 0) { stocks[idx].quote = q; stocks[idx].name = q.name; renderStocks(); var p = await fetchMinuteData(code); if (p && p.length > 0) { minuteData[code] = p; drawKline('kline-' + code, code); var mc = document.getElementById('mkline-' + code); if(mc){drawKline('mkline-' + code, code, mc.parentElement.clientWidth||100, 28)} } } }
 }
 document.getElementById('stockCodeInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') addStock() });
 document.getElementById('addModal').addEventListener('click', function(e) { if (e.target === document.getElementById('addModal')) closeAddModal() });
