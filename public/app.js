@@ -262,9 +262,9 @@ function renderTableHeader() {
   var isAdmin = currentUser && currentUser.is_admin;
   var hdr = document.getElementById('tableHeader');
   if (isAdmin) {
-    hdr.innerHTML = '<div class="table-header-admin"><div></div><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">目标状态</div><div></div></div>';
+    hdr.innerHTML = '<div class="table-header-admin"><div></div><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">关注状态</div><div></div></div>';
   } else {
-    hdr.innerHTML = '<div class="table-header-user"><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">目标状态</div></div>';
+    hdr.innerHTML = '<div class="table-header-user"><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">关注状态</div></div>';
   }
 }
 
@@ -322,10 +322,12 @@ function renderStocks() {
     else html += '<span class="editable-display" style="font-size:12px;white-space:pre-wrap">' + (s.source || '--') + '</span>';
     html += '</div>';
 
-    // 达标
+    // 关注状态（眼睛图标）
+    var eyeOn = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#f59e0b" stroke-width="2" fill="rgba(245,158,11,0.15)"/><circle cx="12" cy="12" r="3.5" stroke="#f59e0b" stroke-width="2" fill="#f59e0b"/><circle cx="12" cy="12" r="1.5" fill="#0d1117"/></svg>';
+    var eyeOff = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="3.5" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="#6e7681"/></svg>';
     html += '<div style="text-align:center">';
-    if (canEdit) html += '<button class="target-btn ' + (s.reached ? 'yes' : 'no') + '" onclick="toggleReached(' + i + ')">' + (s.reached ? '已达标' : '未达标') + '</button>';
-    else html += '<span class="target-btn ' + (s.reached ? 'yes' : 'no') + '" style="cursor:default">' + (s.reached ? '已达标' : '未达标') + '</span>';
+    if (canEdit) html += '<button class="watch-btn" onclick="toggleReached(' + i + ')" title="' + (s.reached ? '关注中' : '未关注') + '">' + (s.reached ? eyeOn : eyeOff) + '</button>';
+    else html += '<span class="watch-btn" style="cursor:default">' + (s.reached ? eyeOn : eyeOff) + '</span>';
     html += '</div>';
 
     // 删除 — 编辑模式才显示
