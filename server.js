@@ -198,9 +198,12 @@ app.put('/api/users/:id/name', auth, (req, res) => {
 // Stock API — 仅管理员可增删改排序
 // ============================================================
 app.get('/api/stocks', auth, (req, res) => {
-  // 捎带更新用户最后活跃时间（零额外成本）
   run('UPDATE users SET last_login = ? WHERE id = ?', [Date.now(), req.user.id]);
-  res.json(all('SELECT * FROM stocks ORDER BY sort_order, id'));
+  const stocks = all('SELECT * FROM stocks ORDER BY sort_order, id');
+  stocks.forEach(s => {
+    s.comments = all('SELECT * FROM comments WHERE stock_id = ? ORDER BY created_at DESC', [s.id]);
+  });
+  res.json(stocks);
 });
 
 // 排序 — 仅管理员（必须在 :id 路由前面，否则 'reorder' 会被当作 :id）
@@ -244,6 +247,35 @@ app.delete('/api/stocks/:id', adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// ============================================================
+// Comments API
+// ============================================================
+app.get('/api/stocks/:stockId/comments', auth, (req, res) => {
+  const rows = all('SELECT * FROM comments WHERE stock_id = ? ORDER BY created_at DESC', [req.params.stockId]);
+  res.json(rows);
+});
+
+app.post('/api/stocks/:stockId/comments', auth, (req, res) => {
+  const { content } = req.body;
+  if (!content || !content.trim()) return res.status(400).json({ error: '评论不能为空' });
+  const user = req.user;
+  run('INSERT INTO comments (stock_id, user_id, username, display_name, content, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [req.params.stockId, user.id, user.username, user.display_name || user.username, content.trim(), Date.now()]);
+  saveDb();
+  const newComment = get('SELECT * FROM comments WHERE stock_id = ? ORDER BY id DESC LIMIT 1', [req.params.stockId]);
+  res.json(newComment);
+});
+
+app.delete('/api/comments/:id', auth, (req, res) => {
+  const comment = get('SELECT * FROM comments WHERE id = ?', [req.params.id]);
+  if (!comment) return res.status(404).json({ error: '评论不存在' });
+  // 只有评论作者或管理员可以删
+  if (comment.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: '无权删除' });
+  run('DELETE FROM comments WHERE id = ?', [req.params.id]);
+  saveDb();
+  res.json({ success: true });
+});
+
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 // ============================================================
@@ -274,6 +306,12 @@ async function start() {
     id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL,
     created_by INTEGER, created_at INTEGER NOT NULL,
     used INTEGER DEFAULT 0, used_by TEXT, used_at INTEGER
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, stock_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL, username TEXT NOT NULL, display_name TEXT,
+    content TEXT NOT NULL, created_at INTEGER NOT NULL,
+    FOREIGN KEY(stock_id) REFERENCES stocks(id) ON DELETE CASCADE
   )`);
   saveDb();
   app.listen(PORT, () => {

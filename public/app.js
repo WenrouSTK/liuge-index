@@ -314,9 +314,9 @@ function renderTableHeader() {
   var isAdmin = currentUser && currentUser.is_admin;
   var hdr = document.getElementById('tableHeader');
   if (isAdmin) {
-    hdr.innerHTML = '<div class="table-header-admin"><div></div><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">关注状态</div><div></div></div>';
+    hdr.innerHTML = '<div class="table-header-admin"><div></div><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">关注</div><div>评论</div><div></div></div>';
   } else {
-    hdr.innerHTML = '<div class="table-header-user"><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">关注状态</div></div>';
+    hdr.innerHTML = '<div class="table-header-user"><div>股票名称 / 代码</div><div style="text-align:center">分时走势</div><div style="text-align:right">当前价格</div><div style="text-align:right">涨跌幅</div><div style="text-align:center">目标 / 成本价</div><div>备注</div><div style="text-align:center">关注</div><div>评论</div></div>';
   }
 }
 
@@ -382,6 +382,23 @@ function renderStocks() {
     else html += '<span class="watch-btn" style="cursor:default">' + (s.reached ? eyeOn : eyeOff) + '</span>';
     html += '</div>';
 
+    // 评论列
+    var comments = s.comments || [];
+    html += '<div class="comment-cell">';
+    comments.forEach(function(c) {
+      var initial = (c.display_name || c.username || '?').charAt(0).toUpperCase();
+      var canDel = (currentUser && (c.user_id === currentUser.id || currentUser.is_admin));
+      html += '<div class="comment-item">';
+      html += '<div class="comment-avatar">' + initial + '</div>';
+      html += '<div class="comment-body"><span class="comment-author">' + (c.display_name || c.username) + '</span> ';
+      html += '<span class="comment-text">' + escHtml(c.content) + '</span> ';
+      html += '<span class="comment-time">' + timeAgo(c.created_at) + '</span>';
+      if (canDel) html += ' <button class="comment-del" onclick="deleteComment(' + c.id + ',' + s.id + ')" title="删除">✕</button>';
+      html += '</div></div>';
+    });
+    html += '<div class="comment-input-wrap"><input class="comment-input" placeholder="写评论..." data-stock-id="' + s.id + '" onkeydown="if(event.key===\'Enter\')sendComment(this)"><button class="comment-send" onclick="sendComment(this.previousElementSibling)">发送</button></div>';
+    html += '</div>';
+
     // 删除 — 编辑模式才显示
     if (canEdit) html += '<div style="text-align:center"><button class="delete-btn" onclick="removeStock(' + i + ')" title="删除">✕</button></div>';
     else if (isAdmin) html += '<div></div>';
@@ -421,6 +438,7 @@ function renderStocks() {
           '<div class="m-line3-meta">成本:' + (s.cost_price || '--') + '  目标:' + (s.target_price || '--') + '</div>' +
         '</div>' +
         (noteText ? '<div class="m-line4">' + noteText + '</div>' : '') +
+        buildMobileComments(s) +
       '</div>';
     }).join('');
   }
@@ -479,6 +497,73 @@ async function addStock() {
 }
 document.getElementById('stockCodeInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') addStock() });
 document.getElementById('addModal').addEventListener('click', function(e) { if (e.target === document.getElementById('addModal')) closeAddModal() });
+
+
+// ============================================================
+// 7b. Comments
+// ============================================================
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function timeAgo(ts) { var d = Date.now() - ts, m = Math.floor(d/60000); if(m<1)return'刚刚'; if(m<60)return m+'分钟前'; var h=Math.floor(m/60); if(h<24)return h+'小时前'; return Math.floor(h/24)+'天前' }
+
+function buildMobileComments(s) {
+  var comments = s.comments || [];
+  if (!comments.length) return '<div class="m-comments"><div class="m-comment-input-wrap"><input class="m-comment-input" placeholder="写评论..." data-stock-id="' + s.id + '" onkeydown="if(event.key===\'Enter\')sendComment(this)"><button class="comment-send" onclick="sendComment(this.previousElementSibling)">发送</button></div></div>';
+  var first = comments[0];
+  var total = comments.length;
+  var initial = (first.display_name || first.username || '?').charAt(0).toUpperCase();
+  var html = '<div class="m-comments">';
+  // 预览：第1条
+  html += '<div class="m-comment-preview">';
+  html += '<div class="comment-avatar">' + initial + '</div>';
+  html += '<span class="comment-text"><b>' + (first.display_name || first.username) + '</b> ' + escHtml(first.content) + '</span>';
+  if (total > 1) html += '<button class="m-comment-toggle" onclick="toggleMobileComments(this,' + s.id + ')">(' + total + ') ▼</button>';
+  html += '</div>';
+  // 所有评论（默认隐藏）
+  html += '<div class="m-comment-all" id="mComments-' + s.id + '" style="display:none">';
+  comments.forEach(function(c) {
+    var ci = (c.display_name || c.username || '?').charAt(0).toUpperCase();
+    var canDel = currentUser && (c.user_id === currentUser.id || currentUser.is_admin);
+    html += '<div class="comment-item"><div class="comment-avatar">' + ci + '</div><div class="comment-body"><span class="comment-author">' + (c.display_name || c.username) + '</span> <span class="comment-text">' + escHtml(c.content) + '</span> <span class="comment-time">' + timeAgo(c.created_at) + '</span>';
+    if (canDel) html += ' <button class="comment-del" onclick="deleteComment(' + c.id + ',' + s.id + ')">✕</button>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  // 输入框
+  html += '<div class="m-comment-input-wrap"><input class="m-comment-input" placeholder="写评论..." data-stock-id="' + s.id + '" onkeydown="if(event.key===\'Enter\')sendComment(this)"><button class="comment-send" onclick="sendComment(this.previousElementSibling)">发送</button></div>';
+  html += '</div>';
+  return html;
+}
+
+function toggleMobileComments(btn, stockId) {
+  var el = document.getElementById('mComments-' + stockId);
+  if (!el) return;
+  if (el.style.display === 'none') { el.style.display = 'block'; btn.textContent = btn.textContent.replace('▼','▲') }
+  else { el.style.display = 'none'; btn.textContent = btn.textContent.replace('▲','▼') }
+}
+
+async function sendComment(input) {
+  var stockId = input.dataset.stockId;
+  var content = input.value.trim();
+  if (!content) return;
+  try {
+    await api('POST', '/api/stocks/' + stockId + '/comments', { content: content });
+    input.value = '';
+    // 刷新评论：从服务器拉最新stocks
+    var serverStocks = await api('GET', '/api/stocks');
+    if (serverStocks) { var qm = {}; stocks.forEach(function(s){if(s.quote)qm[s.code]=s.quote}); stocks = serverStocks; stocks.forEach(function(s){if(qm[s.code])s.quote=qm[s.code]}); }
+    renderStocks();
+  } catch(e) { alert(e.message) }
+}
+
+async function deleteComment(commentId, stockId) {
+  if (!confirm('删除这条评论？')) return;
+  try {
+    await api('DELETE', '/api/comments/' + commentId);
+    var serverStocks = await api('GET', '/api/stocks');
+    if (serverStocks) { var qm = {}; stocks.forEach(function(s){if(s.quote)qm[s.code]=s.quote}); stocks = serverStocks; stocks.forEach(function(s){if(qm[s.code])s.quote=qm[s.code]}); }
+    renderStocks();
+  } catch(e) { alert(e.message) }
+}
 
 // ============================================================
 // 8. Refresh & Clock
