@@ -277,10 +277,12 @@
 <!-- Admin -->
 <div class="page" id="adminPage">
   <div class="header">
-    <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">用户管理</div></div></div>
-    <div class="header-right"><div class="user-info"><span class="avatar" id="adminAvatar">A</span><span id="adminName">管理员</span>
-      <button class="hdr-btn hdr-btn-admin" onclick="showApp()">← 返回盯盘</button>
-      <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div></div>
+    <div class="header-row1">
+      <div class="header-left"><div><div class="logo">六哥指数</div><div class="logo-sub">用户管理</div></div></div>
+      <div class="header-right"><div class="user-info" style="cursor:default"><span class="avatar" id="adminAvatar">A</span><span id="adminName">管理员</span></div>
+        <button class="hdr-btn hdr-btn-admin" onclick="showApp()">← 返回盯盘</button>
+        <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
+    </div>
   </div>
   <div class="main">
     <div class="admin-header"><div class="admin-title">👥 用户管理</div><div class="admin-stats"><span>总用户：<strong id="adminTotalUsers">0</strong></span><span>管理员：<strong id="adminTotalAdmins">0</strong></span></div></div>
