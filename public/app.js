@@ -158,7 +158,8 @@ async function renderAdminUsers() {
         '<td><div class="admin-avatar-cell"><div class="admin-avatar-img" onclick="triggerAvatarUpload(' + u.id + ')" title="点击更换头像">' + avH + '<img class="avatar-pencil" src="/image/pencil.png" width="14" height="14"></div><div><div><strong contenteditable="true" spellcheck="false" style="outline:none;min-width:40px;display:inline-block;border-bottom:1px dashed var(--border-color);padding:0 2px" oninput="onNameEdit(this)" onblur="saveName(' + u.id + ',this)">' + dn + '</strong>' + (isSelf ? '<span style="font-size:10px;color:var(--gold);margin-left:6px">(我)</span>' : '') + '</div><div style="font-size:10px;color:var(--text-muted)">@' + u.username + '</div></div></div></td>' +
         '<td><span class="status-dot ' + (isSelf ? 'online' : 'offline') + '"></span>' + (isSelf ? '在线' : ts + '前') + '</td>' +
         '<td><span class="admin-badge ' + (u.is_admin ? 'yes' : 'no') + '">' + (u.is_admin ? '管理员' : '普通用户') + '</span></td>' +
-        '<td><label class="toggle-switch"><input type="checkbox" ' + (u.is_admin ? 'checked' : '') + ' ' + (isSelf ? 'disabled' : '') + ' onchange="toggleAdmin(' + u.id + ',this.checked)"><span class="toggle-slider"></span></label>' + (isSelf ? '<span style="font-size:10px;color:var(--text-muted);margin-left:6px">不可修改</span>' : '') + '</td></tr>';
+        '<td><label class="toggle-switch"><input type="checkbox" ' + (u.is_admin ? 'checked' : '') + ' ' + (isSelf ? 'disabled' : '') + ' onchange="toggleAdmin(' + u.id + ',this.checked)"><span class="toggle-slider"></span></label>' + (isSelf ? '<span style="font-size:10px;color:var(--text-muted);margin-left:6px">不可修改</span>' : '') + '</td>' +
+        '<td>' + (isSelf ? '' : '<button class="delete-btn" onclick="deleteUser(' + u.id + ',\'' + dn.replace(/'/g, "\\'") + '\')" title="删除用户" style="display:inline-flex">✕</button>') + '</td></tr>';
     }).join('');
   } catch (e) { console.error(e) }
 }
@@ -187,6 +188,7 @@ function handleAvatarUpload(e) {
   }; reader.readAsDataURL(file); e.target.value = '';
 }
 async function toggleAdmin(userId, isAdmin) { try { await api('PUT', '/api/users/' + userId + '/admin', { is_admin: isAdmin }); renderAdminUsers() } catch (e) { alert(e.message) } }
+async function deleteUser(userId, name) { if (!confirm('确定删除用户 "' + name + '" 吗？该操作不可撤销。')) return; try { await api('DELETE', '/api/users/' + userId); renderAdminUsers() } catch (e) { alert(e.message) } }
 function timeDiff(ts) { const d = Date.now() - ts, m = Math.floor(d / 60000); if (m < 1) return '刚刚'; if (m < 60) return m + '分钟'; const h = Math.floor(m / 60); if (h < 24) return h + '小时'; return Math.floor(h / 24) + '天' }
 
 // ============================================================

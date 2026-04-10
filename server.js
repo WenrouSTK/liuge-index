@@ -165,6 +165,14 @@ app.put('/api/users/:id/admin', adminAuth, (req, res) => {
   res.json({ success: true });
 });
 
+app.delete('/api/users/:id', adminAuth, (req, res) => {
+  const { id } = req.params;
+  if (parseInt(id) === req.user.id) return res.status(400).json({ error: '不能删除自己' });
+  run('DELETE FROM users WHERE id = ?', [id]);
+  saveDb();
+  res.json({ success: true });
+});
+
 app.put('/api/users/:id/avatar', auth, (req, res) => {
   const { id } = req.params;
   if (parseInt(id) !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: '无权操作' });
