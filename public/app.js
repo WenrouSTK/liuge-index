@@ -122,7 +122,12 @@ async function showAdmin() {
   await renderAdminUsers();
   await renderInvites();
 }
-function showApp() { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('appPage').classList.add('active') }
+function showApp() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('appPage').classList.add('active');
+  // 返回时重新渲染，确保列表正常显示
+  renderStocks();
+}
 
 async function renderAdminUsers() {
   try {
@@ -456,12 +461,11 @@ document.getElementById('addModal').addEventListener('click', function(e) { if (
 // ============================================================
 var refreshFailed = false;
 async function refreshAll() {
-  if (!stocks.length) return;
-  // 编辑模式下不从服务器拉取列表，避免覆盖编辑中的内容
+  // 编辑模式下不从服务器拉取列表
   if (!editMode) {
     try {
       var serverStocks = await api('GET', '/api/stocks');
-      if (serverStocks && serverStocks.length) {
+      if (serverStocks) {
         var quoteMap = {};
         stocks.forEach(function(s) { if (s.quote) quoteMap[s.code] = s.quote });
         stocks = serverStocks;
@@ -469,6 +473,7 @@ async function refreshAll() {
       }
     } catch (e) {}
   }
+  if (!stocks.length) { renderStocks(); return; }
   try {
     var codes = stocks.map(function(s) { return s.code });
     var res = await fetchQuotesBatch(codes);
