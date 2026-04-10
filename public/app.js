@@ -223,14 +223,7 @@ function drawKline(id, code, W, H) {
   ctx.strokeStyle = gridColor; ctx.lineWidth = 0.5; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(0, toY(pc)); ctx.lineTo(W, toY(pc)); ctx.stroke(); ctx.setLineDash([]);
 
   var lp = pts[pts.length - 1], lc = lp > pc ? '#ef4444' : lp < pc ? '#22c55e' : '#6e7681';
-  var gr = ctx.createLinearGradient(0, 0, 0, H);
-  if (lp >= pc) { gr.addColorStop(0, 'rgba(239,68,68,0.18)'); gr.addColorStop(1, 'rgba(239,68,68,0)') } else { gr.addColorStop(0, 'rgba(34,197,94,0.18)'); gr.addColorStop(1, 'rgba(34,197,94,0)') }
 
-  // 渐变填充（只填到数据结束位置）
-  ctx.beginPath(); ctx.moveTo(0, toY(pts[0]));
-  pts.forEach(function(p, i) { ctx.lineTo(i * sx, toY(p)) });
-  ctx.lineTo(dataWidth, H); ctx.lineTo(0, H); ctx.closePath();
-  ctx.fillStyle = gr; ctx.fill();
 
   // 走势线
   ctx.beginPath(); ctx.moveTo(0, toY(pts[0]));
