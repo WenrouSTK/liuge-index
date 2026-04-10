@@ -155,7 +155,7 @@ async function renderAdminUsers() {
       const avH = u.avatar ? '<img src="' + u.avatar + '">' : '<span>' + dn.charAt(0).toUpperCase() + '</span>';
       const ts = u.last_login ? timeDiff(u.last_login) : '未知';
       return '<tr><td style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-muted)">' + u.id + '</td>' +
-        '<td><div class="admin-avatar-cell"><div class="admin-avatar-img" onclick="triggerAvatarUpload(' + u.id + ')" title="点击更换头像">' + avH + '</div><div><div><strong contenteditable="true" spellcheck="false" style="outline:none;min-width:40px;display:inline-block;border-bottom:1px dashed var(--border-color);padding:0 2px" oninput="onNameEdit(this)" onblur="saveName(' + u.id + ',this)">' + dn + '</strong>' + (isSelf ? '<span style="font-size:10px;color:var(--gold);margin-left:6px">(我)</span>' : '') + '</div><div style="font-size:10px;color:var(--text-muted)">@' + u.username + '</div></div></div></td>' +
+        '<td><div class="admin-avatar-cell"><div class="admin-avatar-img" onclick="triggerAvatarUpload(' + u.id + ')" title="点击更换头像">' + avH + '<img class="avatar-pencil" src="/image/pencil.png" width="14" height="14"></div><div><div><strong contenteditable="true" spellcheck="false" style="outline:none;min-width:40px;display:inline-block;border-bottom:1px dashed var(--border-color);padding:0 2px" oninput="onNameEdit(this)" onblur="saveName(' + u.id + ',this)">' + dn + '</strong>' + (isSelf ? '<span style="font-size:10px;color:var(--gold);margin-left:6px">(我)</span>' : '') + '</div><div style="font-size:10px;color:var(--text-muted)">@' + u.username + '</div></div></div></td>' +
         '<td><span class="status-dot ' + (isSelf ? 'online' : 'offline') + '"></span>' + (isSelf ? '在线' : ts + '前') + '</td>' +
         '<td><span class="admin-badge ' + (u.is_admin ? 'yes' : 'no') + '">' + (u.is_admin ? '管理员' : '普通用户') + '</span></td>' +
         '<td><label class="toggle-switch"><input type="checkbox" ' + (u.is_admin ? 'checked' : '') + ' ' + (isSelf ? 'disabled' : '') + ' onchange="toggleAdmin(' + u.id + ',this.checked)"><span class="toggle-slider"></span></label>' + (isSelf ? '<span style="font-size:10px;color:var(--text-muted);margin-left:6px">不可修改</span>' : '') + '</td></tr>';
@@ -365,8 +365,8 @@ function renderStocks() {
     html += '</div>';
 
     // 关注状态（眼睛图标）
-    var eyeOn = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#f59e0b" stroke-width="2" fill="rgba(245,158,11,0.15)"/><circle cx="12" cy="12" r="3.5" stroke="#f59e0b" stroke-width="2" fill="#f59e0b"/><circle cx="12" cy="12" r="1.5" fill="#0d1117"/></svg>';
-    var eyeOff = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="3.5" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="#6e7681"/></svg>';
+    var eyeOn = '<img src="/image/eye-fill.png" width="28" height="28" alt="关注中">';
+    var eyeOff = '<img src="/image/eye.png" width="28" height="28" alt="未关注">';
     html += '<div style="text-align:center">';
     if (canEdit) html += '<button class="watch-btn" onclick="toggleReached(' + i + ')" title="' + (s.reached ? '关注中' : '未关注') + '">' + (s.reached ? eyeOn : eyeOff) + '</button>';
     else html += '<span class="watch-btn" style="cursor:default">' + (s.reached ? eyeOn : eyeOff) + '</span>';
@@ -390,14 +390,14 @@ function renderStocks() {
       var nm = s.quote ? s.quote.name : (s.name || '加载中...');
       var url = getEastmoneyUrl(s.code);
       var noteText = s.source || '';
-      var eyeSvg = s.reached
-        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#f59e0b" stroke-width="2" fill="rgba(245,158,11,0.15)"/><circle cx="12" cy="12" r="3" stroke="#f59e0b" stroke-width="2" fill="#f59e0b"/><circle cx="12" cy="12" r="1.2" fill="#0d1117"/></svg>'
-        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="#6e7681" stroke-width="2"/><circle cx="12" cy="12" r="1.2" fill="#6e7681"/></svg>';
+      var eyeImg = s.reached
+        ? '<img src="/image/eye-fill.png" width="20" height="20" alt="关注中">'
+        : '<img src="/image/eye.png" width="20" height="20" alt="未关注">';
       return '<div class="m-card">' +
         '<div class="m-line1">' +
           '<div class="m-line1-left">' +
             '<a class="m-stock-name ' + cl + '" href="' + url + '" target="_blank" rel="noopener">' + nm + '</a>' +
-            '<span class="m-eye">' + eyeSvg + '</span>' +
+            '<span class="m-eye">' + eyeImg + '</span>' +
           '</div>' +
           '<div class="m-line1-chart"><canvas id="mkline-' + s.code + '"></canvas></div>' +
           '<div class="m-line1-price ' + cl + '">¥' + prS + '</div>' +
