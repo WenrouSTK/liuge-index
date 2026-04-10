@@ -161,7 +161,7 @@
 
   @media(max-width:768px){
     .header-row1{padding:12px 16px}
-    .header-row2{display:flex!important;align-items:center;justify-content:center;gap:10px;padding:8px 16px;border-top:1px solid var(--border-color);font-size:12px}
+    .header-row2{display:flex!important;align-items:center;justify-content:center;gap:8px;padding:6px 16px;border-top:1px solid var(--border-color);font-size:12px;white-space:nowrap;flex-wrap:nowrap}
     .desktop-only{display:none!important}
     .mobile-only{display:flex!important}
     .header-left .logo{font-size:22px}
@@ -259,7 +259,8 @@
     </div>
     <div class="header-row2 mobile-only">
       <div class="refresh-indicator" id="refreshIndicatorM"><span class="refresh-dot"></span><span id="refreshTextM">实时更新中</span></div>
-      <div class="market-time"><div class="time" id="clockM">--:--:--</div><div id="marketStatusM">加载中...</div></div>
+      <span class="time" id="clockM">--:--:--</span>
+      <span id="marketStatusM">加载中...</span>
     </div>
   </div>
   <div class="main">
