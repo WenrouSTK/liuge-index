@@ -129,7 +129,7 @@
   .comment-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
   .comment-body{flex:1;min-width:0}
   .comment-author{font-weight:600;color:var(--text-secondary);font-size:11px}
-  .comment-text{color:var(--text-muted);word-break:break-all}
+  .comment-text{color:var(--text-muted);word-break:break-all;opacity:0.88}
   .comment-time{color:var(--text-muted);font-size:10px;opacity:0.6}
   .comment-del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:10px;opacity:0.5;padding:0 2px;transition:all 0.2s}
   .comment-del:hover{opacity:1;color:var(--red)}
@@ -140,9 +140,9 @@
   .comment-send:hover{opacity:0.85}
 
   /* Mobile comments */
-  .m-comments{margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);font-size:12px}
+  .m-comments{margin-top:6px;padding-top:6px;border-top:1px solid rgba(128,128,128,0.33);font-size:12px}
   .m-comment-preview{display:flex;align-items:flex-start;gap:6px}
-  .m-comment-preview .comment-text{flex:1;color:var(--text-muted);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .m-comment-preview .comment-text{flex:1;color:var(--text-muted);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;opacity:0.88}
   .m-comment-toggle{background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;white-space:nowrap;padding:0;flex-shrink:0;font-weight:600}
   .m-comment-all{margin-top:6px}
   .m-comment-input-wrap{display:flex;gap:4px;margin-top:6px}
@@ -198,7 +198,7 @@
     .desktop-table{display:none!important}
     .mobile-stock-list{display:block!important}
 
-    .m-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:14px;margin-bottom:8px}
+    .m-card{background:var(--bg-secondary);border:1px solid rgba(128,128,128,0.33);border-radius:10px;padding:14px;margin-bottom:8px}
 
     /* 第1行：股票名+眼睛 | 分时图 | 价格 */
     .m-line1{display:flex;align-items:center;gap:6px}
@@ -220,7 +220,7 @@
     .m-line3-meta{font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums}
 
     /* 第4行：备注 */
-    .m-line4{margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color);font-size:12px;color:var(--text-muted);line-height:1.6;white-space:pre-wrap}
+    .m-line4{margin-top:8px;padding-top:8px;border-top:1px solid rgba(128,128,128,0.33);font-size:12px;color:var(--text-muted);line-height:1.6;white-space:pre-wrap}
 
     .market-time .time{font-size:12px}
     .user-info{padding:4px 8px;font-size:12px}
