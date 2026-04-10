@@ -175,7 +175,7 @@ app.delete('/api/users/:id', adminAuth, (req, res) => {
 
 app.put('/api/users/:id/avatar', auth, (req, res) => {
   const { id } = req.params;
-  if (parseInt(id) !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: '无权操作' });
+  if (parseInt(id) !== req.user.id) return res.status(403).json({ error: '只能修改自己的头像' });
   run('UPDATE users SET avatar = ? WHERE id = ?', [req.body.avatar || null, id]);
   saveDb();
   res.json({ success: true });
@@ -183,7 +183,7 @@ app.put('/api/users/:id/avatar', auth, (req, res) => {
 
 app.put('/api/users/:id/name', auth, (req, res) => {
   const { id } = req.params;
-  if (parseInt(id) !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: '无权操作' });
+  if (parseInt(id) !== req.user.id) return res.status(403).json({ error: '只能修改自己的用户名' });
   const { display_name } = req.body;
   if (!display_name || !display_name.trim()) return res.status(400).json({ error: '显示名不能为空' });
   let byteLen = 0;

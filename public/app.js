@@ -155,7 +155,15 @@ async function renderAdminUsers() {
       const avH = u.avatar ? '<img src="' + u.avatar + '">' : '<span>' + dn.charAt(0).toUpperCase() + '</span>';
       const ts = u.last_login ? timeDiff(u.last_login) : '未知';
       return '<tr><td style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-muted)">' + u.id + '</td>' +
-        '<td><div class="admin-avatar-cell"><div class="admin-avatar-img" onclick="triggerAvatarUpload(' + u.id + ')" title="点击更换头像">' + avH + '<img class="avatar-pencil" src="/image/pencil.png" width="14" height="14"></div><div><div><strong contenteditable="true" spellcheck="false" style="outline:none;min-width:40px;display:inline-block;border-bottom:1px dashed var(--border-color);padding:0 2px" oninput="onNameEdit(this)" onblur="saveName(' + u.id + ',this)">' + dn + '</strong>' + (isSelf ? '<span style="font-size:10px;color:var(--gold);margin-left:6px">(我)</span>' : '') + '</div><div style="font-size:10px;color:var(--text-muted)">@' + u.username + '</div></div></div></td>' +
+        '<td><div class="admin-avatar-cell">' +
+        (isSelf
+          ? '<div class="admin-avatar-img" onclick="triggerAvatarUpload(' + u.id + ')" title="点击更换头像">' + avH + '<img class="avatar-pencil" src="/image/pencil.png" width="14" height="14"></div>'
+          : '<div class="admin-avatar-img" style="cursor:default">' + avH + '</div>') +
+        '<div><div>' +
+        (isSelf
+          ? '<strong contenteditable="true" spellcheck="false" style="outline:none;min-width:40px;display:inline-block;border-bottom:1px dashed var(--border-color);padding:0 2px" oninput="onNameEdit(this)" onblur="saveName(' + u.id + ',this)">' + dn + '</strong><span style="font-size:10px;color:var(--gold);margin-left:6px">(我)</span>'
+          : '<strong>' + dn + '</strong>') +
+        '</div><div style="font-size:10px;color:var(--text-muted)">@' + u.username + '</div></div></div></td>' +
         '<td><span class="status-dot ' + (isSelf ? 'online' : 'offline') + '"></span>' + (isSelf ? '在线' : ts + '前') + '</td>' +
         '<td><span class="admin-badge ' + (u.is_admin ? 'yes' : 'no') + '">' + (u.is_admin ? '管理员' : '普通用户') + '</span></td>' +
         '<td><label class="toggle-switch"><input type="checkbox" ' + (u.is_admin ? 'checked' : '') + ' ' + (isSelf ? 'disabled' : '') + ' onchange="toggleAdmin(' + u.id + ',this.checked)"><span class="toggle-slider"></span></label>' + (isSelf ? '<span style="font-size:10px;color:var(--text-muted);margin-left:6px">不可修改</span>' : '') + '</td>' +
@@ -566,7 +574,7 @@ async function renderInvites() {
         '<td>' + status + '</td>' +
         '<td>' + usedBy + '</td>' +
         '<td style="font-size:12px;color:var(--text-muted)">' + time + '</td>' +
-        '<td>' + (inv.used ? '' : '<button class="delete-btn" onclick="deleteInvite(' + inv.id + ')" title="删除" style="display:inline-flex">✕</button>') + '</td>' +
+        '<td><button class="delete-btn" onclick="deleteInvite(' + inv.id + ')" title="删除" style="display:inline-flex">✕</button></td>' +
       '</tr>';
     }).join('');
   } catch (e) { console.error(e) }
