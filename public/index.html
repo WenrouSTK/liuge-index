@@ -70,9 +70,14 @@
   .header-right{display:flex;align-items:center;gap:10px}
   .market-time{font-size:12px;color:var(--text-muted);text-align:right}
   .market-time .time{font-size:14px;color:var(--text-secondary);font-weight:600;font-variant-numeric:tabular-nums}
-  .user-info{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-color);font-size:13px;color:var(--text-secondary)}
+  .user-info-wrap{position:relative}
+  .user-info{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-color);font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all 0.15s;user-select:none}
+  .user-info:hover{border-color:var(--accent);background:var(--bg-hover)}
   .user-info .avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;overflow:hidden}
   .user-info .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+  .user-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:8px;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:150;flex-direction:column;gap:4px}
+  .user-menu.open{display:flex}
+  .user-menu .hdr-btn{width:100%;justify-content:center}
   .hdr-btn{padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;display:inline-flex;align-items:center;gap:4px}
   .hdr-btn-admin{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(88,166,255,0.2)}.hdr-btn-admin:hover{background:rgba(88,166,255,0.15);border-color:var(--accent)}
   .hdr-btn-logout{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,0.2)}.hdr-btn-logout:hover{background:rgba(239,68,68,0.2);border-color:var(--red)}
@@ -238,9 +243,13 @@
       <div class="header-right">
         <div class="refresh-indicator desktop-only" id="refreshIndicator"><span class="refresh-dot"></span><span id="refreshText">实时更新中</span></div>
         <div class="market-time desktop-only"><div id="marketStatus">加载中...</div><div class="time" id="clock">--:--:--</div></div>
-        <div class="user-info"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span>
-          <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin()">⚙ 管理</button>
-          <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出</button></div>
+        <div class="user-info-wrap">
+          <div class="user-info" onclick="toggleUserMenu(event)"><span class="avatar" id="userAvatar">U</span><span id="userName">用户</span></div>
+          <div class="user-menu" id="userMenu">
+            <button class="hdr-btn hdr-btn-admin" id="adminLink" style="display:none" onclick="showAdmin();closeUserMenu()">⚙ 管理</button>
+            <button class="hdr-btn hdr-btn-logout" onclick="doLogout()">退出登录</button>
+          </div>
+        </div>
         <button class="btn" id="editModeBtn" onclick="toggleEditMode()" style="display:none">✏️ 编辑</button>
         <button class="btn btn-primary" id="saveModeBtn" onclick="saveAllChanges()" style="display:none">💾 保存</button>
         <button class="btn btn-primary" id="addStockBtn" onclick="openAddModal()" style="display:none"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>添加股票</button>

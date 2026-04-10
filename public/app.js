@@ -81,7 +81,21 @@ async function loginStep2() {
 
 function backToStep1() { document.getElementById('loginStep2').classList.remove('active'); document.getElementById('loginStep1').style.display = 'block' }
 
+// 头像菜单弹窗
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('userMenu');
+  menu.classList.toggle('open');
+}
+function closeUserMenu() {
+  var menu = document.getElementById('userMenu');
+  if (menu) menu.classList.remove('open');
+}
+// 点击页面其他地方关闭弹窗
+document.addEventListener('click', function() { closeUserMenu() });
+
 function doLogout() {
+  closeUserMenu();
   authToken = ''; currentUser = null; localStorage.removeItem('liuge_token');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('loginPage').classList.remove('hidden');
@@ -253,7 +267,7 @@ function toggleEditMode() {
   editMode = true;
   document.getElementById('editModeBtn').style.display = 'none';
   document.getElementById('saveModeBtn').style.display = 'inline-flex';
-  document.getElementById('addStockBtn').style.display = 'none';
+  // 编辑模式下保留添加股票按钮
   renderStocks();
 }
 
