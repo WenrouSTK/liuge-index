@@ -197,26 +197,51 @@ function drawKline(id, code, W, H) {
   var cv = document.getElementById(id); if (!cv) return;
   W = W || 140; H = H || 50;
   var s = stocks.find(function(x) { return x.code === code }), ctx = cv.getContext('2d'), dpr = window.devicePixelRatio || 1;
-  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.scale(dpr, dpr);
-  // 读取当前主题背景色
+  // 固定canvas像素尺寸，防止被flex拉伸
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  cv.style.maxWidth = W + 'px';
+  ctx.scale(dpr, dpr);
   var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-  // 透明背景，和卡片底色融合
   ctx.clearRect(0, 0, W, H);
   var gridColor = isDark ? 'rgba(110,118,129,0.35)' : 'rgba(0,0,0,0.1)';
   var labelColor = isDark ? '#6e7681' : '#9a9a9e';
   if (!s || !s.quote || !s.quote.prevClose || s.quote.price <= 0) { ctx.fillStyle = labelColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('等待数据...', W / 2, H / 2 + 3); return }
   var q = s.quote, pc = q.prevClose, pts = minuteData[code];
   if (!pts || pts.length < 2) { ctx.fillStyle = labelColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('加载中...', W / 2, H / 2 + 3); return }
+
+  // A股一天共240分钟（9:30-11:30=120分钟 + 13:00-15:00=120分钟）
+  var TOTAL_MINUTES = 240;
+  // 按总交易时长分配X轴，未收盘时走线只到当前进度位置
+  var sx = W / TOTAL_MINUTES;  // 每分钟的像素宽度
+  var dataWidth = (pts.length - 1) * sx; // 实际数据占据的宽度
+
   var all = [pc].concat(pts), mn = Math.min.apply(null, all) * 0.999, mx = Math.max.apply(null, all) * 1.001, rng = mx - mn || 1, pad = 3;
   function toY(v) { return pad + ((mx - v) / rng) * (H - pad * 2) }
+
+  // 昨收基准线（画满整个宽度）
   ctx.strokeStyle = gridColor; ctx.lineWidth = 0.5; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(0, toY(pc)); ctx.lineTo(W, toY(pc)); ctx.stroke(); ctx.setLineDash([]);
-  var lp = pts[pts.length - 1], lc = lp > pc ? '#ef4444' : lp < pc ? '#22c55e' : '#6e7681', gr = ctx.createLinearGradient(0, 0, 0, H);
+
+  var lp = pts[pts.length - 1], lc = lp > pc ? '#ef4444' : lp < pc ? '#22c55e' : '#6e7681';
+  var gr = ctx.createLinearGradient(0, 0, 0, H);
   if (lp >= pc) { gr.addColorStop(0, 'rgba(239,68,68,0.18)'); gr.addColorStop(1, 'rgba(239,68,68,0)') } else { gr.addColorStop(0, 'rgba(34,197,94,0.18)'); gr.addColorStop(1, 'rgba(34,197,94,0)') }
-  var sx = W / (pts.length - 1 || 1);
-  ctx.beginPath(); ctx.moveTo(0, toY(pts[0])); pts.forEach(function(p, i) { ctx.lineTo(i * sx, toY(p)) }); ctx.lineTo((pts.length - 1) * sx, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fillStyle = gr; ctx.fill();
-  ctx.beginPath(); ctx.moveTo(0, toY(pts[0])); pts.forEach(function(p, i) { ctx.lineTo(i * sx, toY(p)) }); ctx.strokeStyle = lc; ctx.lineWidth = 1.5; ctx.stroke();
-  var ex = (pts.length - 1) * sx, ey = toY(lp), hl = lc === '#ef4444' ? 'rgba(239,68,68,0.2)' : lc === '#22c55e' ? 'rgba(34,197,94,0.2)' : 'rgba(110,118,129,0.2)';
-  ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fillStyle = hl; ctx.fill(); ctx.beginPath(); ctx.arc(ex, ey, 1.5, 0, Math.PI * 2); ctx.fillStyle = lc; ctx.fill();
+
+  // 渐变填充（只填到数据结束位置）
+  ctx.beginPath(); ctx.moveTo(0, toY(pts[0]));
+  pts.forEach(function(p, i) { ctx.lineTo(i * sx, toY(p)) });
+  ctx.lineTo(dataWidth, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = gr; ctx.fill();
+
+  // 走势线
+  ctx.beginPath(); ctx.moveTo(0, toY(pts[0]));
+  pts.forEach(function(p, i) { ctx.lineTo(i * sx, toY(p)) });
+  ctx.strokeStyle = lc; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // 终点圆点
+  var ex = dataWidth, ey = toY(lp);
+  var hl = lc === '#ef4444' ? 'rgba(239,68,68,0.2)' : lc === '#22c55e' ? 'rgba(34,197,94,0.2)' : 'rgba(110,118,129,0.2)';
+  ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fillStyle = hl; ctx.fill();
+  ctx.beginPath(); ctx.arc(ex, ey, 1.5, 0, Math.PI * 2); ctx.fillStyle = lc; ctx.fill();
 }
 
 function fetchQuotesBatch(codes) { if (!codes.length) return Promise.resolve({}); return new Promise(function(r) { var syms = codes.map(function(c) { return getMarketPrefix(c) + c }).join(','), sc = document.createElement('script'); sc.src = 'https://qt.gtimg.cn/q=' + syms + '&_=' + Date.now(); var t = setTimeout(function() { cl(); r({}) }, 8000); function cl() { clearTimeout(t); if (sc.parentNode) sc.parentNode.removeChild(sc) } sc.onload = function() { var res = {}; codes.forEach(function(code) { try { var sym = getMarketPrefix(code) + code, raw = window['v_' + sym]; if (raw && typeof raw === 'string' && raw.length > 10) { var p = raw.split('~'); if (p.length >= 45) res[code] = { code: code, name: p[1], open: +p[5], prevClose: +p[4], price: +p[3], high: +p[33] || +p[41], low: +p[34] || +p[42], volume: +p[6], amount: +p[37], change: +p[31], changePercent: +p[32] } } } catch (e) {} }); cl(); r(res) }; sc.onerror = function() { cl(); r({}) }; document.head.appendChild(sc) }) }
@@ -362,7 +387,7 @@ function renderStocks() {
             '<a class="m-stock-name ' + cl + '" href="' + url + '" target="_blank" rel="noopener">' + nm + '</a>' +
             '<span class="m-eye">' + eyeSvg + '</span>' +
           '</div>' +
-          '<div class="m-line1-chart"><canvas id="mkline-' + s.code + '" width="100" height="28" style="width:100%;height:28px"></canvas></div>' +
+          '<div class="m-line1-chart"><canvas id="mkline-' + s.code + '"></canvas></div>' +
           '<div class="m-line1-price ' + cl + '">¥' + prS + '</div>' +
         '</div>' +
         '<div class="m-line2">' +
