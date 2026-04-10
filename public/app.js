@@ -383,7 +383,7 @@ function renderStocks() {
     html += '</div>';
 
     // 评论列
-    var comments = s.comments || [];
+    var comments = (s.comments || []).slice().reverse();
     html += '<div class="comment-cell">';
     comments.forEach(function(c) {
       var initial = (c.display_name || c.username || '?').charAt(0).toUpperCase();
@@ -506,7 +506,7 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 function timeAgo(ts) { var d = Date.now() - ts, m = Math.floor(d/60000); if(m<1)return'刚刚'; if(m<60)return m+'分钟前'; var h=Math.floor(m/60); if(h<24)return h+'小时前'; return Math.floor(h/24)+'天前' }
 
 function buildMobileComments(s) {
-  var comments = s.comments || [];
+  var comments = (s.comments || []).slice().reverse();
   if (!comments.length) return '<div class="m-comments"><div class="m-comment-input-wrap"><input class="m-comment-input" placeholder="写评论..." data-stock-id="' + s.id + '" onkeydown="if(event.key===\'Enter\')sendComment(this)"><button class="comment-send" onclick="sendComment(this.previousElementSibling)">发送</button></div></div>';
   var first = comments[0];
   var total = comments.length;
