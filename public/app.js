@@ -543,6 +543,38 @@ function updateClock() {
 // 9. Init
 // ============================================================
 var appInited = false;
+
+// 判断当前是否交易时段
+function isTradingTime() {
+  var n = new Date();
+  var d = n.getDay(), hm = n.getHours() * 100 + n.getMinutes();
+  if (d < 1 || d > 5) return false;
+  // 9:15 ~ 15:00
+  return hm >= 915 && hm < 1500;
+}
+
+// 动态刷新调度：交易时段5秒，非交易60秒
+var refreshTimer = null;
+var minuteTimer = null;
+
+function scheduleRefresh() {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  var interval = isTradingTime() ? 5000 : 60000;
+  refreshTimer = setTimeout(async function() {
+    await refreshAll();
+    scheduleRefresh(); // 递归调度，每次重新判断时段
+  }, interval);
+}
+
+function scheduleMinuteData() {
+  if (minuteTimer) clearTimeout(minuteTimer);
+  var interval = isTradingTime() ? 30000 : 120000; // 交易30秒，非交易2分钟
+  minuteTimer = setTimeout(async function() {
+    await loadAllMinuteData();
+    scheduleMinuteData();
+  }, interval);
+}
+
 async function initApp() {
   if (appInited) return; appInited = true;
   try { stocks = await api('GET', '/api/stocks') || [] } catch (e) { stocks = [] }
@@ -550,8 +582,8 @@ async function initApp() {
   renderStocks();
   if (stocks.length) await refreshAll();
   await loadAllMinuteData();
-  setInterval(refreshAll, 10000);
-  setInterval(loadAllMinuteData, 60000);
+  scheduleRefresh();
+  scheduleMinuteData();
 }
 
 // ============================================================

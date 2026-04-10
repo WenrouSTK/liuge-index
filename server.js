@@ -198,6 +198,8 @@ app.put('/api/users/:id/name', auth, (req, res) => {
 // Stock API — 仅管理员可增删改排序
 // ============================================================
 app.get('/api/stocks', auth, (req, res) => {
+  // 捎带更新用户最后活跃时间（零额外成本）
+  run('UPDATE users SET last_login = ? WHERE id = ?', [Date.now(), req.user.id]);
   res.json(all('SELECT * FROM stocks ORDER BY sort_order, id'));
 });
 
