@@ -518,9 +518,9 @@ function buildMobileComments(s) {
   html += '<span class="comment-text"><b>' + (first.display_name || first.username) + '</b> ' + escHtml(first.content) + '</span>';
   if (total > 1) html += '<button class="m-comment-toggle" onclick="toggleMobileComments(this,' + s.id + ')">(' + total + ') ▼</button>';
   html += '</div>';
-  // 所有评论（默认隐藏）
+  // 所有评论（默认隐藏）— 跳过第1条，只显示剩余
   html += '<div class="m-comment-all" id="mComments-' + s.id + '" style="display:none">';
-  comments.forEach(function(c) {
+  comments.slice(1).forEach(function(c) {
     var ci = (c.display_name || c.username || '?').charAt(0).toUpperCase();
     var canDel = currentUser && (c.user_id === currentUser.id || currentUser.is_admin);
     html += '<div class="comment-item"><div class="comment-avatar">' + ci + '</div><div class="comment-body"><span class="comment-author">' + (c.display_name || c.username) + '</span> <span class="comment-text">' + escHtml(c.content) + '</span> <span class="comment-time">' + timeAgo(c.created_at) + '</span>';
