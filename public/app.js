@@ -162,7 +162,7 @@ async function renderAdminUsers() {
     if (isAdmin) {
       theadRow.innerHTML = '<th>UID</th><th>头像 / 用户名</th><th>登录状态</th><th>管理员</th><th>管理员开关</th><th></th>';
     } else {
-      theadRow.innerHTML = '<th>UID</th><th>头像 / 用户名</th>';
+      theadRow.innerHTML = '<th>头像 / 用户名</th>';
     }
     if (isAdmin) {
       document.getElementById('adminTotalUsers').textContent = users.length;
@@ -173,8 +173,9 @@ async function renderAdminUsers() {
       const dn = u.display_name || u.username;
       const avH = u.avatar ? '<img src="' + u.avatar + '">' : '<span>' + dn.charAt(0).toUpperCase() + '</span>';
       const ts = u.last_login ? timeDiff(u.last_login) : '未知';
-      var row = '<tr><td style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-muted)">' + u.id + '</td>' +
-        '<td><div class="admin-avatar-cell">' +
+      var row = '<tr>';
+      if (isAdmin) row += '<td style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-muted)">' + u.id + '</td>';
+      row += '<td><div class="admin-avatar-cell">' +
         (isSelf
           ? '<div class="admin-avatar-img" onclick="triggerAvatarUpload(' + u.id + ')" title="点击更换头像">' + avH + '<img class="avatar-pencil" src="/image/pencil.png" width="14" height="14"></div>'
           : '<div class="admin-avatar-img" style="cursor:default">' + avH + '</div>') +
