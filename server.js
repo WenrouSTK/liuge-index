@@ -297,15 +297,16 @@ function wxpusherSend(content, summary, topicIds, uids) {
       topicIds: topicIds || [],
       uids: uids || []
     });
+    console.log('[WxPusher] 发送请求, topicIds=' + JSON.stringify(topicIds) + ', summary=' + summary);
     const req = https.request({
       hostname: 'wxpusher.zjiecode.com', path: '/api/send/message',
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
     }, (res) => {
       let data = '';
       res.on('data', c => data += c);
-      res.on('end', () => { try { resolve(JSON.parse(data)) } catch(e) { resolve({ success: false }) } });
+      res.on('end', () => { console.log('[WxPusher] 响应:', data); try { resolve(JSON.parse(data)) } catch(e) { resolve({ success: false, raw: data }) } });
     });
-    req.on('error', () => resolve({ success: false }));
+    req.on('error', (e) => { console.log('[WxPusher] 请求错误:', e.message); resolve({ success: false, error: e.message }) });
     req.write(body);
     req.end();
   });
