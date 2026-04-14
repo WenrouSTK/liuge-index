@@ -114,7 +114,7 @@ function enterApp() {
   document.getElementById('userName').textContent = u.display_name || u.username;
   const av = document.getElementById('userAvatar');
   if (u.avatar) av.innerHTML = '<img src="' + u.avatar + '">'; else av.textContent = (u.display_name || u.username).charAt(0).toUpperCase();
-  document.getElementById('adminLink').style.display = u.is_admin ? 'inline-flex' : 'none';
+  document.getElementById('adminLink').style.display = 'inline-flex';
   document.getElementById('addStockBtn').style.display = u.is_admin ? 'inline-flex' : 'none';
   document.getElementById('editModeBtn').style.display = u.is_admin ? 'inline-flex' : 'none';
   renderTableHeader();
@@ -133,8 +133,17 @@ async function showAdmin() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('adminPage').classList.add('active');
   if (currentUser) { document.getElementById('adminName').textContent = currentUser.display_name || currentUser.username; const av = document.getElementById('adminAvatar'); if (currentUser.avatar) av.innerHTML = '<img src="' + currentUser.avatar + '">'; else av.textContent = (currentUser.display_name || currentUser.username).charAt(0).toUpperCase() }
+  // 普通用户隐藏管理员专属区域
+  var isAdmin = currentUser && currentUser.is_admin;
+  var adminStats = document.getElementById('adminStatsBar');
+  if (adminStats) adminStats.style.display = isAdmin ? '' : 'none';
+  var inviteSection = document.getElementById('inviteSection');
+  if (inviteSection) inviteSection.style.display = isAdmin ? '' : 'none';
+  // 管理页标题根据角色调整
+  var adminTitle = document.getElementById('adminPageTitle');
+  if (adminTitle) adminTitle.textContent = isAdmin ? '👥 用户管理' : '👤 个人设置';
   await renderAdminUsers();
-  await renderInvites();
+  if (isAdmin) await renderInvites();
 }
 function showApp() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -147,14 +156,24 @@ async function renderAdminUsers() {
   try {
     const users = await api('GET', '/api/users');
     const tbody = document.getElementById('adminUserList');
-    document.getElementById('adminTotalUsers').textContent = users.length;
-    document.getElementById('adminTotalAdmins').textContent = users.filter(u => u.is_admin).length;
+    const isAdmin = currentUser && currentUser.is_admin;
+    // 动态表头
+    var theadRow = tbody.parentElement.querySelector('thead tr');
+    if (isAdmin) {
+      theadRow.innerHTML = '<th>UID</th><th>头像 / 用户名</th><th>登录状态</th><th>管理员</th><th>管理员开关</th><th></th>';
+    } else {
+      theadRow.innerHTML = '<th>UID</th><th>头像 / 用户名</th>';
+    }
+    if (isAdmin) {
+      document.getElementById('adminTotalUsers').textContent = users.length;
+      document.getElementById('adminTotalAdmins').textContent = users.filter(u => u.is_admin).length;
+    }
     tbody.innerHTML = users.map(u => {
       const isSelf = currentUser && u.id === currentUser.id;
       const dn = u.display_name || u.username;
       const avH = u.avatar ? '<img src="' + u.avatar + '">' : '<span>' + dn.charAt(0).toUpperCase() + '</span>';
       const ts = u.last_login ? timeDiff(u.last_login) : '未知';
-      return '<tr><td style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-muted)">' + u.id + '</td>' +
+      var row = '<tr><td style="font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-muted)">' + u.id + '</td>' +
         '<td><div class="admin-avatar-cell">' +
         (isSelf
           ? '<div class="admin-avatar-img" onclick="triggerAvatarUpload(' + u.id + ')" title="点击更换头像">' + avH + '<img class="avatar-pencil" src="/image/pencil.png" width="14" height="14"></div>'
@@ -163,11 +182,15 @@ async function renderAdminUsers() {
         (isSelf
           ? '<strong contenteditable="true" spellcheck="false" style="outline:none;min-width:40px;display:inline-block;border-bottom:1px dashed var(--border-color);padding:0 2px" oninput="onNameEdit(this)" onblur="saveName(' + u.id + ',this)">' + dn + '</strong><span style="font-size:10px;color:var(--gold);margin-left:6px">(我)</span>'
           : '<strong>' + dn + '</strong>') +
-        '</div><div style="font-size:10px;color:var(--text-muted)">@' + u.username + '</div></div></div></td>' +
-        '<td><span class="status-dot ' + (isSelf ? 'online' : 'offline') + '"></span>' + (isSelf ? '在线' : ts + '前') + '</td>' +
+        '</div><div style="font-size:10px;color:var(--text-muted)">@' + u.username + '</div></div></div></td>';
+      if (isAdmin) {
+        row += '<td><span class="status-dot ' + (isSelf ? 'online' : 'offline') + '"></span>' + (isSelf ? '在线' : ts + '前') + '</td>' +
         '<td><span class="admin-badge ' + (u.is_admin ? 'yes' : 'no') + '">' + (u.is_admin ? '管理员' : '普通用户') + '</span></td>' +
         '<td><label class="toggle-switch"><input type="checkbox" ' + (u.is_admin ? 'checked' : '') + ' ' + (isSelf ? 'disabled' : '') + ' onchange="toggleAdmin(' + u.id + ',this.checked)"><span class="toggle-slider"></span></label>' + (isSelf ? '<span style="font-size:10px;color:var(--text-muted);margin-left:6px">不可修改</span>' : '') + '</td>' +
-        '<td>' + (isSelf ? '' : '<button class="delete-btn" onclick="deleteUser(' + u.id + ',\'' + dn.replace(/'/g, "\\'") + '\')" title="删除用户" style="display:inline-flex">✕</button>') + '</td></tr>';
+        '<td>' + (isSelf ? '' : '<button class="delete-btn" onclick="deleteUser(' + u.id + ',\'' + dn.replace(/'/g, "\\'") + '\')" title="删除用户" style="display:inline-flex">✕</button>') + '</td>';
+      }
+      row += '</tr>';
+      return row;
     }).join('');
   } catch (e) { console.error(e) }
 }

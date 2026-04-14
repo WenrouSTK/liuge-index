@@ -153,8 +153,12 @@ app.delete('/api/invites/:id', adminAuth, (req, res) => {
 // ============================================================
 // User Management API
 // ============================================================
-app.get('/api/users', adminAuth, (req, res) => {
-  res.json(all('SELECT id, username, display_name, is_admin, avatar, created_at, last_login FROM users ORDER BY created_at'));
+app.get('/api/users', auth, (req, res) => {
+  if (req.user.is_admin) {
+    res.json(all('SELECT id, username, display_name, is_admin, avatar, created_at, last_login FROM users ORDER BY created_at'));
+  } else {
+    res.json(all('SELECT id, username, display_name, is_admin, avatar, created_at, last_login FROM users WHERE id = ?', [req.user.id]));
+  }
 });
 
 app.put('/api/users/:id/admin', adminAuth, (req, res) => {
