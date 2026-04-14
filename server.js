@@ -324,7 +324,9 @@ function isTradingTime() {
 }
 
 async function checkPriceAlerts() {
-  if (!db || !isTradingTime()) return;
+  if (!db) return;
+  // TODO: 测试完毕后恢复 isTradingTime() 限制
+  // if (!isTradingTime()) return;
   const today = getTodayStr();
   const stocks = all('SELECT * FROM stocks');
   if (!stocks || !stocks.length) return;
