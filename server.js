@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const iconv = require('iconv-lite');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -347,8 +348,11 @@ async function checkPriceAlerts() {
         const req = https.request({
           hostname: 'qt.gtimg.cn', path: '/q=' + symbol, method: 'GET'
         }, (res) => {
-          let d = ''; res.on('data', c => d += c);
-          res.on('end', () => resolve(d));
+          const chunks = []; res.on('data', c => chunks.push(c));
+          res.on('end', () => {
+            const buf = Buffer.concat(chunks);
+            resolve(iconv.decode(buf, 'gbk'));
+          });
         });
         req.on('error', () => resolve(''));
         req.setTimeout(5000, () => { req.destroy(); resolve('') });
