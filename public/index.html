@@ -320,6 +320,27 @@
       <div class="admin-header"><div class="admin-title">🎟️ 邀请码管理</div><div><button class="btn btn-primary" onclick="generateInvite()" style="font-size:12px;padding:6px 14px">+ 生成邀请码</button></div></div>
       <div class="table-container"><table class="admin-table"><thead><tr><th>邀请码</th><th>状态</th><th>使用者</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="inviteList"></tbody></table></div>
     </div>
+
+    <div style="margin-top:28px" id="wxpusherSection">
+      <div class="admin-header"><div class="admin-title">📱 微信推送提醒</div></div>
+      <div style="padding:16px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px">
+        <div id="wxpusherStatus" style="margin-bottom:12px">
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 8px">绑定微信后，当股票价格触碰成本价或目标价时，你会收到微信推送提醒。</p>
+        </div>
+        <div id="wxpusherBound" style="display:none">
+          <p style="color:var(--green);font-size:14px;margin:0 0 8px">✅ 已绑定微信推送</p>
+          <button class="btn" onclick="unbindWxPusher()" style="font-size:12px;padding:4px 12px">解绑</button>
+        </div>
+        <div id="wxpusherUnbound" style="display:none">
+          <p style="color:var(--gold);font-size:14px;margin:0 0 12px">⚠ 未绑定微信推送</p>
+          <button class="btn btn-primary" onclick="bindWxPusher()" style="font-size:13px;padding:8px 16px">📱 扫码绑定微信</button>
+          <div id="wxpusherQR" style="margin-top:12px;display:none;text-align:center">
+            <img id="wxpusherQRImg" style="width:200px;height:200px;border-radius:8px;border:1px solid var(--border-color)">
+            <p style="font-size:12px;color:var(--text-muted);margin-top:8px">用微信扫描上方二维码关注，即可接收推送</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 <!-- Modals -->

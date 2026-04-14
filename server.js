@@ -280,6 +280,165 @@ app.delete('/api/comments/:id', auth, (req, res) => {
   res.json({ success: true });
 });
 
+// ============================================================
+// WxPusher 推送
+// ============================================================
+const WXPUSHER_TOKEN = process.env.WXPUSHER_TOKEN || 'AT_hQs2ignARGaNeKsqBySy32LwpFOboJjm';
+const WXPUSHER_TOPIC_ID = parseInt(process.env.WXPUSHER_TOPIC_ID || '0'); // 在WxPusher后台创建Topic后填入
+const https = require('https');
+
+function wxpusherSend(content, summary, topicIds, uids) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      appToken: WXPUSHER_TOKEN,
+      content: content,
+      summary: summary || content.substring(0, 50),
+      contentType: 2, // HTML
+      topicIds: topicIds || [],
+      uids: uids || []
+    });
+    const req = https.request({
+      hostname: 'wxpusher.zjiecode.com', path: '/api/send/message',
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => { try { resolve(JSON.parse(data)) } catch(e) { resolve({ success: false }) } });
+    });
+    req.on('error', () => resolve({ success: false }));
+    req.write(body);
+    req.end();
+  });
+}
+
+// 每日提醒记录 { "code_buy": "2026-04-14", "code_sell": "2026-04-14" }
+const alertSentToday = {};
+
+function getTodayStr() {
+  const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0');
+}
+
+function isTradingTime() {
+  const n = new Date(), d = n.getDay(), hm = n.getHours() * 100 + n.getMinutes();
+  return d >= 1 && d <= 5 && hm >= 915 && hm < 1500;
+}
+
+async function checkPriceAlerts() {
+  if (!db || !isTradingTime()) return;
+  const today = getTodayStr();
+  const stocks = all('SELECT * FROM stocks');
+  if (!stocks || !stocks.length) return;
+
+  // 获取行情（通过腾讯接口）
+  for (const s of stocks) {
+    const costPrice = parseFloat(s.cost_price);
+    const targetPrice = parseFloat(s.target_price);
+    if (isNaN(costPrice) && isNaN(targetPrice)) continue;
+
+    // 获取当前价格
+    let price = 0, name = s.code;
+    try {
+      const prefix = (s.code.startsWith('6') || s.code.startsWith('9')) ? 'sh' : 'sz';
+      const symbol = prefix + s.code;
+      const data = await new Promise((resolve) => {
+        const req = https.request({
+          hostname: 'qt.gtimg.cn', path: '/q=' + symbol, method: 'GET'
+        }, (res) => {
+          let d = ''; res.on('data', c => d += c);
+          res.on('end', () => resolve(d));
+        });
+        req.on('error', () => resolve(''));
+        req.setTimeout(5000, () => { req.destroy(); resolve('') });
+        req.end();
+      });
+      const match = data.match(/="([^"]+)"/);
+      if (match) {
+        const parts = match[1].split('~');
+        if (parts.length >= 45) {
+          name = parts[1] || s.code;
+          price = parseFloat(parts[3]);
+        }
+      }
+    } catch(e) { continue; }
+
+    if (!price || price <= 0) continue;
+
+    // 检查买入提醒（当前价 ≤ 成本价）
+    if (!isNaN(costPrice) && costPrice > 0 && price <= costPrice) {
+      const key = s.code + '_buy';
+      if (alertSentToday[key] !== today) {
+        const topicIds = WXPUSHER_TOPIC_ID ? [WXPUSHER_TOPIC_ID] : [];
+        if (topicIds.length) {
+          const html = `<h3>📗 买入提醒</h3><p><b>${name}</b>（${s.code}）</p><p>当前价：<b style="color:#22c55e">¥${price.toFixed(2)}</b></p><p>成本价：¥${costPrice.toFixed(2)}</p><p style="color:#888;font-size:12px">价格已触碰成本价，可考虑买入</p>`;
+          const summary = '📗 ' + name + ' ¥' + price.toFixed(2) + ' 触碰成本价';
+          await wxpusherSend(html, summary, topicIds);
+          alertSentToday[key] = today;
+          console.log('  📗 买入提醒:', name, price, '≤', costPrice);
+        }
+      }
+    }
+
+    // 检查卖出提醒（当前价 ≥ 目标价）
+    if (!isNaN(targetPrice) && targetPrice > 0 && price >= targetPrice) {
+      const key = s.code + '_sell';
+      if (alertSentToday[key] !== today) {
+        const topicIds = WXPUSHER_TOPIC_ID ? [WXPUSHER_TOPIC_ID] : [];
+        if (topicIds.length) {
+          const html = `<h3>📕 卖出提醒</h3><p><b>${name}</b>（${s.code}）</p><p>当前价：<b style="color:#ef4444">¥${price.toFixed(2)}</b></p><p>目标价：¥${targetPrice.toFixed(2)}</p><p style="color:#888;font-size:12px">价格已触碰目标价，可考虑卖出</p>`;
+          const summary = '📕 ' + name + ' ¥' + price.toFixed(2) + ' 触碰目标价';
+          await wxpusherSend(html, summary, topicIds);
+          alertSentToday[key] = today;
+          console.log('  📕 卖出提醒:', name, price, '≥', targetPrice);
+        }
+      }
+    }
+  }
+}
+
+// WxPusher 用户绑定相关 API
+app.get('/api/wxpusher/qrcode', auth, (req, res) => {
+  // 生成带参数的关注二维码
+  const extra = 'user_' + req.user.id;
+  const url = `https://wxpusher.zjiecode.com/api/fun/create/qrcode?appToken=${WXPUSHER_TOKEN}&extra=${extra}&validTime=3600`;
+  https.get(url, (resp) => {
+    let data = '';
+    resp.on('data', c => data += c);
+    resp.on('end', () => {
+      try { res.json(JSON.parse(data)) } catch(e) { res.status(500).json({ error: '生成二维码失败' }) }
+    });
+  }).on('error', () => res.status(500).json({ error: '网络错误' }));
+});
+
+// WxPusher 回调：用户扫码关注后，WxPusher 会回调这个地址
+app.post('/api/wxpusher/callback', (req, res) => {
+  try {
+    const { action, data } = req.body;
+    if (action === 'app_subscribe' && data && data.uid && data.extra) {
+      // extra 格式: user_123
+      const userId = parseInt(data.extra.replace('user_', ''));
+      if (userId && db) {
+        run('UPDATE users SET wxpusher_uid = ? WHERE id = ?', [data.uid, userId]);
+        saveDb();
+        console.log('  🔗 WxPusher 绑定: user', userId, '→', data.uid);
+      }
+    }
+  } catch(e) {}
+  res.json({ success: true });
+});
+
+// 获取当前用户的 WxPusher 绑定状态
+app.get('/api/wxpusher/status', auth, (req, res) => {
+  const user = get('SELECT wxpusher_uid FROM users WHERE id = ?', [req.user.id]);
+  res.json({ bound: !!(user && user.wxpusher_uid), uid: user ? user.wxpusher_uid : null });
+});
+
+// 解绑 WxPusher
+app.delete('/api/wxpusher/bindling', auth, (req, res) => {
+  run('UPDATE users SET wxpusher_uid = NULL WHERE id = ?', [req.user.id]);
+  saveDb();
+  res.json({ success: true });
+});
+
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 // ============================================================
@@ -298,8 +457,10 @@ async function start() {
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL,
     password_hash TEXT NOT NULL, avatar TEXT DEFAULT NULL, is_admin INTEGER DEFAULT 0,
-    created_at INTEGER NOT NULL, last_login INTEGER
-  )`);;
+    created_at INTEGER NOT NULL, last_login INTEGER, wxpusher_uid TEXT DEFAULT NULL
+  )`);
+  // 兼容旧表：添加 wxpusher_uid 列
+  try { db.run('ALTER TABLE users ADD COLUMN wxpusher_uid TEXT DEFAULT NULL') } catch(e) {};
   db.run(`CREATE TABLE IF NOT EXISTS stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL,
     cost_price TEXT DEFAULT '', target_price TEXT DEFAULT '', source TEXT DEFAULT '',
@@ -321,8 +482,11 @@ async function start() {
   app.listen(PORT, () => {
     console.log('\n  🍊 六哥指数 服务已启动');
     console.log('  🚀 地址: http://localhost:' + PORT);
-    console.log('  📁 数据库: ' + DB_PATH + '\n');
+    console.log('  📁 数据库: ' + DB_PATH);
+    console.log('  📡 WxPusher Topic ID: ' + (WXPUSHER_TOPIC_ID || '未配置') + '\n');
   });
+  // 每30秒检测一次价格提醒（只在交易时段触发）
+  setInterval(checkPriceAlerts, 30000);
 }
 
 start().catch(e => { console.error('启动失败:', e); process.exit(1); });

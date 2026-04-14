@@ -144,6 +144,7 @@ async function showAdmin() {
   if (adminTitle) adminTitle.textContent = isAdmin ? '👥 用户管理' : '👤 个人设置';
   await renderAdminUsers();
   if (isAdmin) await renderInvites();
+  await checkWxPusherStatus();
 }
 function showApp() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -222,6 +223,53 @@ function handleAvatarUpload(e) {
 async function toggleAdmin(userId, isAdmin) { try { await api('PUT', '/api/users/' + userId + '/admin', { is_admin: isAdmin }); renderAdminUsers() } catch (e) { alert(e.message) } }
 async function deleteUser(userId, name) { if (!confirm('确定删除用户 "' + name + '" 吗？该操作不可撤销。')) return; try { await api('DELETE', '/api/users/' + userId); renderAdminUsers() } catch (e) { alert(e.message) } }
 function timeDiff(ts) { const d = Date.now() - ts, m = Math.floor(d / 60000); if (m < 1) return '刚刚'; if (m < 60) return m + '分钟'; const h = Math.floor(m / 60); if (h < 24) return h + '小时'; return Math.floor(h / 24) + '天' }
+
+// ============================================================
+// 2b. WxPusher 绑定
+// ============================================================
+async function checkWxPusherStatus() {
+  try {
+    var res = await api('GET', '/api/wxpusher/status');
+    if (res.bound) {
+      document.getElementById('wxpusherBound').style.display = '';
+      document.getElementById('wxpusherUnbound').style.display = 'none';
+    } else {
+      document.getElementById('wxpusherBound').style.display = 'none';
+      document.getElementById('wxpusherUnbound').style.display = '';
+    }
+  } catch(e) {}
+}
+
+async function bindWxPusher() {
+  try {
+    var res = await api('GET', '/api/wxpusher/qrcode');
+    if (res.data && res.data.url) {
+      document.getElementById('wxpusherQRImg').src = res.data.url;
+      document.getElementById('wxpusherQR').style.display = '';
+      // 每3秒检查是否已绑定
+      var checkInterval = setInterval(async function() {
+        var status = await api('GET', '/api/wxpusher/status');
+        if (status.bound) {
+          clearInterval(checkInterval);
+          document.getElementById('wxpusherQR').style.display = 'none';
+          document.getElementById('wxpusherBound').style.display = '';
+          document.getElementById('wxpusherUnbound').style.display = 'none';
+        }
+      }, 3000);
+      // 5分钟后停止轮询
+      setTimeout(function() { clearInterval(checkInterval) }, 300000);
+    }
+  } catch(e) { alert('生成二维码失败: ' + e.message) }
+}
+
+async function unbindWxPusher() {
+  if (!confirm('确定解绑微信推送吗？解绑后将不再收到价格提醒。')) return;
+  try {
+    await api('DELETE', '/api/wxpusher/bindling');
+    document.getElementById('wxpusherBound').style.display = 'none';
+    document.getElementById('wxpusherUnbound').style.display = '';
+  } catch(e) { alert(e.message) }
+}
 
 // ============================================================
 // 3. Market API
