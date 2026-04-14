@@ -324,10 +324,12 @@ function isTradingTime() {
 }
 
 async function checkPriceAlerts() {
-  if (!db || !isTradingTime()) return;
+  if (!db) return;
+  // 临时测试：去掉时段限制。测试完恢复为 if (!db || !isTradingTime()) return;
   const today = getTodayStr();
   const stocks = all('SELECT * FROM stocks');
-  if (!stocks || !stocks.length) return;
+  if (!stocks || !stocks.length) { console.log('[Alert] 无股票数据'); return; }
+  console.log('[Alert] 检测 ' + stocks.length + ' 只股票, TOPIC_ID=' + WXPUSHER_TOPIC_ID);
 
   // 获取行情（通过腾讯接口）
   for (const s of stocks) {
@@ -361,7 +363,8 @@ async function checkPriceAlerts() {
       }
     } catch(e) { continue; }
 
-    if (!price || price <= 0) continue;
+    if (!price || price <= 0) { console.log('[Alert] ' + s.code + ' 获取价格失败'); continue; }
+    console.log('[Alert] ' + s.code + ' 价格=' + price + ' 成本=' + costPrice + ' 目标=' + targetPrice);
 
     // 检查买入提醒（当前价 ≤ 成本价）
     if (!isNaN(costPrice) && costPrice > 0 && price <= costPrice) {
@@ -371,7 +374,8 @@ async function checkPriceAlerts() {
         if (topicIds.length) {
           const html = `<h3>📗 买入提醒</h3><p><b>${name}</b>（${s.code}）</p><p>当前价：<b style="color:#22c55e">¥${price.toFixed(2)}</b></p><p>成本价：¥${costPrice.toFixed(2)}</p><p style="color:#888;font-size:12px">价格已触碰成本价，可考虑买入</p>`;
           const summary = '📗 ' + name + ' ¥' + price.toFixed(2) + ' 触碰成本价';
-          await wxpusherSend(html, summary, topicIds);
+          const result1 = await wxpusherSend(html, summary, topicIds);
+          console.log('[Alert] 买入推送结果:', JSON.stringify(result1));
           alertSentToday[key] = today;
           console.log('  📗 买入提醒:', name, price, '≤', costPrice);
         }
@@ -386,7 +390,8 @@ async function checkPriceAlerts() {
         if (topicIds.length) {
           const html = `<h3>📕 卖出提醒</h3><p><b>${name}</b>（${s.code}）</p><p>当前价：<b style="color:#ef4444">¥${price.toFixed(2)}</b></p><p>目标价：¥${targetPrice.toFixed(2)}</p><p style="color:#888;font-size:12px">价格已触碰目标价，可考虑卖出</p>`;
           const summary = '📕 ' + name + ' ¥' + price.toFixed(2) + ' 触碰目标价';
-          await wxpusherSend(html, summary, topicIds);
+          const result2 = await wxpusherSend(html, summary, topicIds);
+          console.log('[Alert] 卖出推送结果:', JSON.stringify(result2));
           alertSentToday[key] = today;
           console.log('  📕 卖出提醒:', name, price, '≥', targetPrice);
         }
