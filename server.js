@@ -324,9 +324,7 @@ function isTradingTime() {
 }
 
 async function checkPriceAlerts() {
-  if (!db) return;
-  // TODO: 测试完毕后恢复 isTradingTime() 限制
-  // if (!isTradingTime()) return;
+  if (!db || !isTradingTime()) return;
   const today = getTodayStr();
   const stocks = all('SELECT * FROM stocks');
   if (!stocks || !stocks.length) return;
@@ -487,8 +485,8 @@ async function start() {
     console.log('  📁 数据库: ' + DB_PATH);
     console.log('  📡 WxPusher Topic ID: ' + (WXPUSHER_TOPIC_ID || '未配置') + '\n');
   });
-  // 每30秒检测一次价格提醒（只在交易时段触发）
-  setInterval(checkPriceAlerts, 30000);
+  // 每5秒检测一次价格提醒（只在交易时段触发）
+  setInterval(checkPriceAlerts, 5000);
 }
 
 start().catch(e => { console.error('启动失败:', e); process.exit(1); });
