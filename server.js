@@ -300,6 +300,12 @@ async function start() {
     password_hash TEXT NOT NULL, avatar TEXT DEFAULT NULL, is_admin INTEGER DEFAULT 0,
     created_at INTEGER NOT NULL, last_login INTEGER
   )`);
+  // UID 从 8000 开始
+  const maxId = db.exec('SELECT MAX(id) FROM users');
+  const currentMax = (maxId.length && maxId[0].values[0][0]) || 0;
+  if (currentMax < 7999) {
+    db.run("INSERT OR REPLACE INTO sqlite_sequence (name, seq) VALUES ('users', 7999)");
+  };
   db.run(`CREATE TABLE IF NOT EXISTS stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL,
     cost_price TEXT DEFAULT '', target_price TEXT DEFAULT '', source TEXT DEFAULT '',
