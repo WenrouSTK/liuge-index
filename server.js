@@ -326,8 +326,7 @@ function isTradingTime() {
 }
 
 async function checkPriceAlerts() {
-  if (!db) return;
-  // 临时测试：去掉时段限制。测试完恢复为 if (!db || !isTradingTime()) return;
+  if (!db || !isTradingTime()) return;
   const today = getTodayStr();
   const stocks = all('SELECT * FROM stocks');
   if (!stocks || !stocks.length) { console.log('[Alert] 无股票数据'); return; }
