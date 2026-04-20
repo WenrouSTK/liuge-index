@@ -710,13 +710,13 @@ function isTradingTime() {
   return hm >= 915 && hm < 1500;
 }
 
-// 动态刷新调度：交易时段5秒，非交易60秒
+// 动态刷新调度：交易时段5秒，非交易5分钟（数据不会变，没必要频繁拉）
 var refreshTimer = null;
 var minuteTimer = null;
 
 function scheduleRefresh() {
   if (refreshTimer) clearTimeout(refreshTimer);
-  var interval = isTradingTime() ? 5000 : 60000;
+  var interval = isTradingTime() ? 5000 : 300000; // 5s / 5min
   refreshTimer = setTimeout(async function() {
     await refreshAll();
     scheduleRefresh(); // 递归调度，每次重新判断时段
@@ -725,7 +725,9 @@ function scheduleRefresh() {
 
 function scheduleMinuteData() {
   if (minuteTimer) clearTimeout(minuteTimer);
-  var interval = isTradingTime() ? 30000 : 120000; // 交易30秒，非交易2分钟
+  // 非交易时段完全不刷新分时图（收盘后数据已定）
+  if (!isTradingTime()) return;
+  var interval = 30000;
   minuteTimer = setTimeout(async function() {
     await loadAllMinuteData();
     scheduleMinuteData();

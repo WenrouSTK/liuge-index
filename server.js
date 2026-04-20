@@ -66,7 +66,8 @@ function auth(req, res, next) {
   if (!token) return res.status(401).json({ error: '请先登录' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = get('SELECT * FROM users WHERE id = ?', [decoded.id]);
+    // 只查必要字段，避免每次请求都把 avatar(base64 可能很大) / password_hash 查出来
+    const user = get('SELECT id, username, display_name, is_admin FROM users WHERE id = ?', [decoded.id]);
     if (!user) return res.status(401).json({ error: '用户不存在' });
     req.user = user;
     next();
@@ -126,8 +127,11 @@ app.post('/api/login', (req, res) => {
 });
 
 app.get('/api/me', auth, (req, res) => {
-  const u = req.user;
-  res.json({ id: u.id, username: u.username, display_name: u.display_name, is_admin: u.is_admin, avatar: u.avatar });
+  // 只有 /api/me 需要 avatar，额外查一次；顺便刷新 last_login
+  const full = get('SELECT id, username, display_name, is_admin, avatar FROM users WHERE id = ?', [req.user.id]);
+  run('UPDATE users SET last_login = ? WHERE id = ?', [Date.now(), req.user.id]);
+  saveDb();
+  res.json(full);
 });
 
 // ============================================================
@@ -203,11 +207,15 @@ app.put('/api/users/:id/name', auth, (req, res) => {
 // Stock API — 仅管理员可增删改排序
 // ============================================================
 app.get('/api/stocks', auth, (req, res) => {
-  run('UPDATE users SET last_login = ? WHERE id = ?', [Date.now(), req.user.id]);
   const stocks = all('SELECT * FROM stocks ORDER BY sort_order, id');
-  stocks.forEach(s => {
-    s.comments = all('SELECT * FROM comments WHERE stock_id = ? ORDER BY created_at DESC', [s.id]);
-  });
+  if (!stocks.length) return res.json([]);
+  // 一次性查出所有评论，按 stock_id 分组，避免 N+1
+  const ids = stocks.map(s => s.id);
+  const placeholders = ids.map(() => '?').join(',');
+  const comments = all(`SELECT * FROM comments WHERE stock_id IN (${placeholders}) ORDER BY created_at DESC`, ids);
+  const byStock = {};
+  comments.forEach(c => { (byStock[c.stock_id] = byStock[c.stock_id] || []).push(c); });
+  stocks.forEach(s => { s.comments = byStock[s.id] || []; });
   res.json(stocks);
 });
 
@@ -397,51 +405,61 @@ async function checkMorningWatch() {
   console.log('  🌅 早盘关注提醒:', text);
 }
 
+// 批量获取多只股票行情（单次 HTTP 请求搞定）
+// 返回：{ '600036': { name, price }, '000001': {...} }
+function fetchQuotesBatch(codes) {
+  return new Promise((resolve) => {
+    if (!codes.length) return resolve({});
+    const symbols = codes.map(c => ((c.startsWith('6') || c.startsWith('9')) ? 'sh' : 'sz') + c).join(',');
+    const req = https.request({
+      hostname: 'qt.gtimg.cn', path: '/q=' + symbols, method: 'GET'
+    }, (res) => {
+      const chunks = []; res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const data = iconv.decode(Buffer.concat(chunks), 'gbk');
+        const result = {};
+        // 腾讯接口返回格式: v_sh600036="1~招商银行~600036~...~"; v_sz000001="..."
+        const regex = /v_(?:sh|sz)(\d{6})="([^"]+)"/g;
+        let m;
+        while ((m = regex.exec(data)) !== null) {
+          const parts = m[2].split('~');
+          if (parts.length >= 45) {
+            result[m[1]] = { name: parts[1] || m[1], price: parseFloat(parts[3]) || 0 };
+          }
+        }
+        resolve(result);
+      });
+    });
+    req.on('error', () => resolve({}));
+    req.setTimeout(8000, () => { req.destroy(); resolve({}) });
+    req.end();
+  });
+}
+
 async function checkPriceAlerts() {
-  if (!db || !isTradingTime()) return; // 二道防线，调度器已保证此处只在交易时段被调用
+  if (!db || !isTradingTime()) return;
   const today = getTodayStr();
   const stocks = all('SELECT * FROM stocks');
   if (!stocks || !stocks.length) return;
 
-  // 获取行情（通过腾讯接口）
-  for (const s of stocks) {
+  // 只关心有成本价或目标价的股票，其他跳过省请求
+  const meaningful = stocks.filter(s => {
+    const c = parseFloat(s.cost_price), t = parseFloat(s.target_price);
+    return (!isNaN(c) && c > 0) || (!isNaN(t) && t > 0);
+  });
+  if (!meaningful.length) return;
+
+  // 一次批量请求拿到所有行情
+  const quotes = await fetchQuotesBatch(meaningful.map(s => s.code));
+
+  for (const s of meaningful) {
+    const q = quotes[s.code];
+    if (!q || !q.price || q.price <= 0) continue;
     const costPrice = parseFloat(s.cost_price);
     const targetPrice = parseFloat(s.target_price);
-    if (isNaN(costPrice) && isNaN(targetPrice)) continue;
+    const price = q.price, name = q.name;
 
-    // 获取当前价格
-    let price = 0, name = s.code;
-    try {
-      const prefix = (s.code.startsWith('6') || s.code.startsWith('9')) ? 'sh' : 'sz';
-      const symbol = prefix + s.code;
-      const data = await new Promise((resolve) => {
-        const req = https.request({
-          hostname: 'qt.gtimg.cn', path: '/q=' + symbol, method: 'GET'
-        }, (res) => {
-          const chunks = []; res.on('data', c => chunks.push(c));
-          res.on('end', () => {
-            const buf = Buffer.concat(chunks);
-            resolve(iconv.decode(buf, 'gbk'));
-          });
-        });
-        req.on('error', () => resolve(''));
-        req.setTimeout(5000, () => { req.destroy(); resolve('') });
-        req.end();
-      });
-      const match = data.match(/="([^"]+)"/);
-      if (match) {
-        const parts = match[1].split('~');
-        if (parts.length >= 45) {
-          name = parts[1] || s.code;
-          price = parseFloat(parts[3]);
-        }
-      }
-    } catch(e) { continue; }
-
-    if (!price || price <= 0) { console.log('[Alert] ' + s.code + ' 获取价格失败'); continue; }
-    // 每只股票的明细不再打日志，只在触发提醒或出错时打
-
-    // 检查买入提醒（当前价 ≤ 成本价）
+    // 买入提醒（当前价 ≤ 成本价）
     if (!isNaN(costPrice) && costPrice > 0 && price <= costPrice) {
       const key = s.code + '_buy';
       if (alertSentToday[key] !== today) {
@@ -449,15 +467,14 @@ async function checkPriceAlerts() {
         if (topicIds.length) {
           const html = `<h3>📗 买入提醒</h3><p><b>${name}</b>（${s.code}）</p><p>当前价：<b style="color:#22c55e">¥${price.toFixed(2)}</b></p><p>成本价：¥${costPrice.toFixed(2)}</p><p style="color:#888;font-size:12px">价格已触碰成本价，可考虑买入</p>`;
           const summary = '📗 ' + name + ' ¥' + price.toFixed(2) + ' 触碰成本价';
-          const result1 = await wxpusherSend(html, summary, topicIds);
-          console.log('[Alert] 买入推送结果:', JSON.stringify(result1));
+          await wxpusherSend(html, summary, topicIds);
           alertSentToday[key] = today;
           console.log('  📗 买入提醒:', name, price, '≤', costPrice);
         }
       }
     }
 
-    // 检查卖出提醒（当前价 ≥ 目标价）
+    // 卖出提醒（当前价 ≥ 目标价）
     if (!isNaN(targetPrice) && targetPrice > 0 && price >= targetPrice) {
       const key = s.code + '_sell';
       if (alertSentToday[key] !== today) {
@@ -465,8 +482,7 @@ async function checkPriceAlerts() {
         if (topicIds.length) {
           const html = `<h3>📕 卖出提醒</h3><p><b>${name}</b>（${s.code}）</p><p>当前价：<b style="color:#ef4444">¥${price.toFixed(2)}</b></p><p>目标价：¥${targetPrice.toFixed(2)}</p><p style="color:#888;font-size:12px">价格已触碰目标价，可考虑卖出</p>`;
           const summary = '📕 ' + name + ' ¥' + price.toFixed(2) + ' 触碰目标价';
-          const result2 = await wxpusherSend(html, summary, topicIds);
-          console.log('[Alert] 卖出推送结果:', JSON.stringify(result2));
+          await wxpusherSend(html, summary, topicIds);
           alertSentToday[key] = today;
           console.log('  📕 卖出提醒:', name, price, '≥', targetPrice);
         }
