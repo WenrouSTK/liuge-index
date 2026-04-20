@@ -53,7 +53,7 @@ function saveDb() {
   } catch (e) { console.error('Save DB error:', e.message); }
 }
 
-setInterval(saveDb, 10000);
+// 业务代码的写操作都已经同步 saveDb()，此处不再定时重复写盘
 // 优雅退出时保存
 process.on('SIGTERM', () => { saveDb(); process.exit(0); });
 process.on('SIGINT', () => { saveDb(); process.exit(0); });
@@ -313,24 +313,95 @@ function wxpusherSend(content, summary, topicIds, uids) {
   });
 }
 
-// 每日提醒记录 { "code_buy": "2026-04-14", "code_sell": "2026-04-14" }
+// 每日提醒记录 { "code_buy": "2026-04-14", "code_sell": "2026-04-14", "morning_watch": "2026-04-14" }
 const alertSentToday = {};
 
+// 获取北京时间（无论服务器时区如何都正确）
+function bjNow() {
+  const nowUtcMs = Date.now();
+  return new Date(nowUtcMs + 8 * 3600 * 1000);
+}
+
 function getTodayStr() {
-  const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0');
+  const n = bjNow(); return n.getUTCFullYear() + '-' + String(n.getUTCMonth()+1).padStart(2,'0') + '-' + String(n.getUTCDate()).padStart(2,'0');
 }
 
 function isTradingTime() {
-  const n = new Date(), d = n.getDay(), hm = n.getHours() * 100 + n.getMinutes();
+  const n = bjNow(), d = n.getUTCDay(), hm = n.getUTCHours() * 100 + n.getUTCMinutes();
   return d >= 1 && d <= 5 && hm >= 915 && hm < 1500;
 }
 
+// 是否为交易日（仅按周一~周五，不处理法定节假日）
+function isTradingDay() {
+  const d = bjNow().getUTCDay();
+  return d >= 1 && d <= 5;
+}
+
+// 从腾讯行情接口获取股票名称
+function fetchStockName(code) {
+  return new Promise((resolve) => {
+    const prefix = (code.startsWith('6') || code.startsWith('9')) ? 'sh' : 'sz';
+    const symbol = prefix + code;
+    const req = https.request({
+      hostname: 'qt.gtimg.cn', path: '/q=' + symbol, method: 'GET'
+    }, (res) => {
+      const chunks = []; res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const data = iconv.decode(Buffer.concat(chunks), 'gbk');
+        const match = data.match(/="([^"]+)"/);
+        if (match) {
+          const parts = match[1].split('~');
+          if (parts.length >= 45 && parts[1]) return resolve(parts[1]);
+        }
+        resolve(code);
+      });
+    });
+    req.on('error', () => resolve(code));
+    req.setTimeout(5000, () => { req.destroy(); resolve(code) });
+    req.end();
+  });
+}
+
+// 早盘关注股票推送：交易日 9:29~9:30 推送一次（开盘前1分钟）
+async function checkMorningWatch() {
+  if (!db) return;
+  if (!isTradingDay()) return;
+  const n = bjNow(), hm = n.getUTCHours() * 100 + n.getUTCMinutes();
+  if (hm < 929 || hm >= 930) return;
+
+  const today = getTodayStr();
+  if (alertSentToday['morning_watch'] === today) return;
+
+  // 每次都实时查 DB，确保 reached 最新状态
+  const watched = all('SELECT code FROM stocks WHERE reached = 1 ORDER BY sort_order, id');
+  if (!watched || !watched.length) {
+    console.log('[MorningWatch] 无关注股票，跳过推送');
+    alertSentToday['morning_watch'] = today; // 今日标记已检查，避免反复查DB
+    return;
+  }
+
+  const topicIds = WXPUSHER_TOPIC_ID ? [WXPUSHER_TOPIC_ID] : [];
+  if (!topicIds.length) { console.log('[MorningWatch] 未配置 TOPIC_ID'); return; }
+
+  // 并行获取股票名称
+  const names = await Promise.all(watched.map(s => fetchStockName(s.code)));
+  const nameStr = names.join('、');
+  const text = `早晨，六哥指数今日关注：${nameStr}，准备起飞！`;
+
+  const html = `<h3>🌅 今日关注</h3><p style="font-size:15px;line-height:1.6">${text}</p>`;
+  const summary = text.length > 50 ? text.substring(0, 47) + '...' : text;
+
+  const result = await wxpusherSend(html, summary, topicIds);
+  console.log('[MorningWatch] 推送结果:', JSON.stringify(result));
+  alertSentToday['morning_watch'] = today;
+  console.log('  🌅 早盘关注提醒:', text);
+}
+
 async function checkPriceAlerts() {
-  if (!db || !isTradingTime()) return;
+  if (!db || !isTradingTime()) return; // 二道防线，调度器已保证此处只在交易时段被调用
   const today = getTodayStr();
   const stocks = all('SELECT * FROM stocks');
-  if (!stocks || !stocks.length) { console.log('[Alert] 无股票数据'); return; }
-  console.log('[Alert] 检测 ' + stocks.length + ' 只股票, TOPIC_ID=' + WXPUSHER_TOPIC_ID);
+  if (!stocks || !stocks.length) return;
 
   // 获取行情（通过腾讯接口）
   for (const s of stocks) {
@@ -368,7 +439,7 @@ async function checkPriceAlerts() {
     } catch(e) { continue; }
 
     if (!price || price <= 0) { console.log('[Alert] ' + s.code + ' 获取价格失败'); continue; }
-    console.log('[Alert] ' + s.code + ' 价格=' + price + ' 成本=' + costPrice + ' 目标=' + targetPrice);
+    // 每只股票的明细不再打日志，只在触发提醒或出错时打
 
     // 检查买入提醒（当前价 ≤ 成本价）
     if (!isNaN(costPrice) && costPrice > 0 && price <= costPrice) {
@@ -492,10 +563,99 @@ async function start() {
     console.log('\n  🍊 六哥指数 服务已启动');
     console.log('  🚀 地址: http://localhost:' + PORT);
     console.log('  📁 数据库: ' + DB_PATH);
-    console.log('  📡 WxPusher Topic ID: ' + (WXPUSHER_TOPIC_ID || '未配置') + '\n');
+    console.log('  📡 WxPusher Topic ID: ' + (WXPUSHER_TOPIC_ID || '未配置'));
+    console.log('  🕐 服务器时间: ' + new Date().toString());
+    console.log('  🇨🇳 北京时间: ' + bjNow().toISOString().replace('T', ' ').replace('Z', '') + '\n');
   });
-  // 每5秒检测一次价格提醒（只在交易时段触发）
-  setInterval(checkPriceAlerts, 5000);
+  // ============================================================
+  // 自适应调度器 — 休市/周末完全不唤醒
+  // 状态机：
+  //   A) 早盘窗口 9:29~9:30       → 每 15s 跑一次 checkMorningWatch
+  //   B) 交易时段 9:15~15:00 (工作日) → 每 5s 跑一次 checkPriceAlerts
+  //   C) 其他时间                  → 计算到下一个唤醒点的毫秒数，setTimeout 一次性 sleep 过去
+  //                                   (跨天跨周末都直接 sleep 过去，不再轮询)
+  // ============================================================
+  scheduleNextTick();
+}
+
+// 下一次唤醒时间点（北京时间）
+// 返回距离下一个需要工作的时间点的毫秒数
+function msUntilNextActiveWindow() {
+  const n = bjNow();
+  const day = n.getUTCDay();          // 0=周日 1=周一 ... 6=周六
+  const h = n.getUTCHours();
+  const m = n.getUTCMinutes();
+  const hm = h * 100 + m;
+
+  // 今天是工作日
+  if (day >= 1 && day <= 5) {
+    // 9:29 之前 → 睡到 9:29
+    if (hm < 929) return msUntilTime(9, 29);
+    // 9:29~9:30 → 立刻跑（不 sleep）
+    if (hm < 930) return 0;
+    // 9:30~9:15 之间这段不存在（9:30 > 9:15），直接看交易时段
+    // 9:15 之前 已在上面处理；9:15~15:00 也立刻跑
+    if (hm >= 915 && hm < 1500) return 0;
+    // 15:00 之后 → 睡到明天 9:29（若明天是周末则继续顺延）
+    return msUntilNextWorkdayAt(9, 29);
+  }
+  // 周末 → 睡到下周一 9:29
+  return msUntilNextWorkdayAt(9, 29);
+}
+
+// 距离今天某个时刻还有多少毫秒（北京时间）
+function msUntilTime(targetH, targetM) {
+  const n = bjNow();
+  const nowMsBj = n.getTime();
+  const todayStart = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), targetH, targetM, 0);
+  const diff = todayStart - nowMsBj;
+  return diff > 0 ? diff : 0;
+}
+
+// 距离下一个工作日某个时刻还有多少毫秒（跳过周末）
+function msUntilNextWorkdayAt(targetH, targetM) {
+  const n = bjNow();
+  // 从明天开始找
+  for (let i = 1; i <= 7; i++) {
+    const future = new Date(n.getTime() + i * 86400000);
+    const fDay = future.getUTCDay();
+    if (fDay >= 1 && fDay <= 5) {
+      const target = Date.UTC(future.getUTCFullYear(), future.getUTCMonth(), future.getUTCDate(), targetH, targetM, 0);
+      return target - n.getTime();
+    }
+  }
+  return 86400000; // 兜底 1 天
+}
+
+async function scheduleNextTick() {
+  try {
+    const n = bjNow();
+    const day = n.getUTCDay();
+    const hm = n.getUTCHours() * 100 + n.getUTCMinutes();
+    const inMorningWindow = day >= 1 && day <= 5 && hm >= 929 && hm < 930;
+    const inTradingWindow = day >= 1 && day <= 5 && hm >= 915 && hm < 1500;
+
+    if (inMorningWindow) {
+      await checkMorningWatch();
+      setTimeout(scheduleNextTick, 15000); // 窗口内 15s 一次
+      return;
+    }
+    if (inTradingWindow) {
+      await checkPriceAlerts();
+      setTimeout(scheduleNextTick, 5000);  // 交易中 5s 一次
+      return;
+    }
+
+    // 非交易时段 — 直接睡到下一个窗口
+    const sleep = msUntilNextActiveWindow();
+    const wakeAt = new Date(n.getTime() + sleep);
+    console.log('[Scheduler] 休眠至 ' + wakeAt.toISOString().replace('T', ' ').replace('Z', '') + ' (北京时间)，共 ' + Math.round(sleep / 1000 / 60) + ' 分钟');
+    // setTimeout 上限约 24.8 天，这里最长 72h 以内，没问题
+    setTimeout(scheduleNextTick, Math.max(sleep, 1000));
+  } catch (e) {
+    console.error('[Scheduler] 错误:', e.message);
+    setTimeout(scheduleNextTick, 60000); // 异常时 1 分钟后重试
+  }
 }
 
 start().catch(e => { console.error('启动失败:', e); process.exit(1); });
