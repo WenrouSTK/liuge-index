@@ -439,10 +439,10 @@ function fetchQuotesBatch(codes) {
 async function checkPriceAlerts() {
   if (!db || !isTradingTime()) return;
   const today = getTodayStr();
-  const stocks = all('SELECT * FROM stocks');
+  // 只扫描"已关注"（reached=1）且 有成本/目标价 的股票
+  const stocks = all('SELECT * FROM stocks WHERE reached = 1');
   if (!stocks || !stocks.length) return;
 
-  // 只关心有成本价或目标价的股票，其他跳过省请求
   const meaningful = stocks.filter(s => {
     const c = parseFloat(s.cost_price), t = parseFloat(s.target_price);
     return (!isNaN(c) && c > 0) || (!isNaN(t) && t > 0);
