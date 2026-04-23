@@ -370,15 +370,16 @@ function fetchStockName(code) {
   });
 }
 
-// 早盘关注股票推送：交易日 9:29~9:30 推送一次（开盘前1分钟）
+// 早盘关注股票推送：交易日 9:25~9:30 推送一次（开盘前几分钟，窗口加宽防漂移）
 async function checkMorningWatch() {
   if (!db) return;
   if (!isTradingDay()) return;
   const n = bjNow(), hm = n.getUTCHours() * 100 + n.getUTCMinutes();
-  if (hm < 929 || hm >= 930) return;
+  if (hm < 925 || hm >= 930) return;
 
   const today = getTodayStr();
   if (alertSentToday['morning_watch'] === today) return;
+  console.log('[MorningWatch] 开始检查今日关注股票...');
 
   // 每次都实时查 DB，确保 reached 最新状态
   const watched = all('SELECT code FROM stocks WHERE reached = 1 ORDER BY sort_order, id');
@@ -605,18 +606,18 @@ function msUntilNextActiveWindow() {
 
   // 今天是工作日
   if (day >= 1 && day <= 5) {
-    // 9:29 之前 → 睡到 9:29
-    if (hm < 929) return msUntilTime(9, 29);
-    // 9:29~9:30 → 立刻跑（不 sleep）
+    // 9:25 之前 → 睡到 9:25（留 5 分钟窗口防 setTimeout 漂移）
+    if (hm < 925) return msUntilTime(9, 25);
+    // 9:25~9:30 → 早盘窗口，立刻跑
     if (hm < 930) return 0;
     // 9:30~9:15 之间这段不存在（9:30 > 9:15），直接看交易时段
     // 9:15 之前 已在上面处理；9:15~15:00 也立刻跑
     if (hm >= 915 && hm < 1500) return 0;
     // 15:00 之后 → 睡到明天 9:29（若明天是周末则继续顺延）
-    return msUntilNextWorkdayAt(9, 29);
+    return msUntilNextWorkdayAt(9, 25);
   }
   // 周末 → 睡到下周一 9:29
-  return msUntilNextWorkdayAt(9, 29);
+  return msUntilNextWorkdayAt(9, 25);
 }
 
 // 距离今天某个时刻还有多少毫秒（北京时间）
@@ -648,7 +649,7 @@ async function scheduleNextTick() {
     const n = bjNow();
     const day = n.getUTCDay();
     const hm = n.getUTCHours() * 100 + n.getUTCMinutes();
-    const inMorningWindow = day >= 1 && day <= 5 && hm >= 929 && hm < 930;
+    const inMorningWindow = day >= 1 && day <= 5 && hm >= 925 && hm < 930;
     const inTradingWindow = day >= 1 && day <= 5 && hm >= 915 && hm < 1500;
 
     if (inMorningWindow) {
