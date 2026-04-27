@@ -536,6 +536,37 @@ app.delete('/api/wxpusher/bindling', auth, (req, res) => {
   res.json({ success: true });
 });
 
+// ============================================================
+// 临时：上传数据库文件（迁移用，迁完删掉这段）
+// ============================================================
+const multer = require('multer');
+const uploadDb = multer({ dest: '/tmp' });
+app.get('/api/upload-db', (req, res) => {
+  if (req.query.key !== 'liuge2026') return res.status(403).send('密钥错误');
+  res.send(`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;background:#0d1117;color:#e6edf3">
+    <h2>上传 liuge.db</h2>
+    <form method="POST" action="/api/upload-db?key=liuge2026" enctype="multipart/form-data">
+      <input type="file" name="dbfile" accept=".db" style="margin:20px 0;font-size:16px"><br>
+      <button type="submit" style="padding:10px 30px;font-size:16px;background:#f59e0b;border:none;border-radius:8px;cursor:pointer">上传并替换数据库</button>
+    </form></body></html>`);
+});
+app.post('/api/upload-db', uploadDb.single('dbfile'), (req, res) => {
+  if (req.query.key !== 'liuge2026') return res.status(403).send('密钥错误');
+  if (!req.file) return res.status(400).send('没有选择文件');
+  try {
+    const dest = path.join(DATA_DIR, 'liuge.db');
+    fs.copyFileSync(req.file.path, dest);
+    fs.unlinkSync(req.file.path);
+    // 重新加载数据库到内存
+    const initSqlJs2 = require('sql.js');
+    initSqlJs2().then(SQL => {
+      const fileBuffer = fs.readFileSync(dest);
+      db = new SQL.Database(fileBuffer);
+      res.send('<h2 style="color:#22c55e">上传成功！数据库已替换并重新加载。</h2><p>刷新首页即可使用。</p>');
+    });
+  } catch(e) { res.status(500).send('上传失败: ' + e.message); }
+});
+
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 // ============================================================
