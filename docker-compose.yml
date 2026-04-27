@@ -1,0 +1,30 @@
+# ============================================================
+# 六哥指数 — Docker Compose for Coolify
+# ============================================================
+# Coolify 原生支持 docker-compose.yml，直接推上去就能跑
+# ============================================================
+
+services:
+  liuge-index:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - JWT_SECRET=${JWT_SECRET:-liuge_secret_key_2026}
+      - WXPUSHER_TOKEN=${WXPUSHER_TOKEN:-AT_hQs2ignARGaNeKsqBySy32LwpFOboJjm}
+      - WXPUSHER_TOPIC_ID=${WXPUSHER_TOPIC_ID:-44069}
+    volumes:
+      - liuge-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  liuge-data:
+    driver: local
