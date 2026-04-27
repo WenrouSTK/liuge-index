@@ -536,6 +536,18 @@ app.delete('/api/wxpusher/bindling', auth, (req, res) => {
   res.json({ success: true });
 });
 
+// ============================================================
+// 临时：下载数据库文件（迁移用，迁完删掉这段）
+// 访问 /api/download-db?key=liuge2026 即可下载 liuge.db
+// ============================================================
+app.get('/api/download-db', (req, res) => {
+  if (req.query.key !== 'liuge2026') return res.status(403).json({ error: '密钥错误' });
+  saveDb(); // 先刷盘确保最新
+  const dbPath = path.join(DATA_DIR, 'liuge.db');
+  if (!fs.existsSync(dbPath)) return res.status(404).json({ error: '数据库文件不存在' });
+  res.download(dbPath, 'liuge.db');
+});
+
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 // ============================================================
